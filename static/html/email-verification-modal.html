@@ -1,0 +1,429 @@
+<!-- Email Verification Modal Component -->
+<!-- Include this in your HTML page and use: emailVerificationApp() in Alpine.js -->
+
+<style>
+  .email-verification-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    backdrop-filter: blur(4px);
+  }
+
+  .email-verification-modal-overlay.active {
+    display: flex;
+  }
+
+  .email-verification-card {
+    background: rgba(31, 40, 71, 0.95);
+    border: 1px solid rgba(102, 126, 234, 0.2);
+    border-radius: 20px;
+    padding: 50px 40px;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(20px);
+    max-width: 420px;
+    width: 90%;
+    animation: modalSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes modalSlideIn {
+    from {
+      opacity: 0;
+      transform: scale(0.9) translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  .email-verification-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    color: white;
+    font-size: 1.6rem;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+  }
+
+  .email-verification-title {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: #ffffff;
+    text-align: center;
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+
+  .email-verification-subtitle {
+    color: rgba(255, 255, 255, 0.6);
+    text-align: center;
+    font-size: 0.9rem;
+    margin-bottom: 25px;
+    line-height: 1.5;
+  }
+
+  .email-verification-error {
+    background: rgba(245, 87, 108, 0.1);
+    border: 1px solid rgba(245, 87, 108, 0.4);
+    color: #ff9aa5;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    font-size: 0.85rem;
+    animation: slideInDown 0.3s ease;
+    display: none;
+    font-weight: 600;
+  }
+
+  .email-verification-error.show {
+    display: block;
+  }
+
+  .email-verification-success {
+    background: rgba(34, 197, 94, 0.1);
+    border: 1px solid rgba(34, 197, 94, 0.4);
+    color: #86efac;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    font-size: 0.85rem;
+    animation: slideInDown 0.3s ease;
+    display: none;
+    font-weight: 600;
+  }
+
+  .email-verification-success.show {
+    display: block;
+  }
+
+  .email-verification-form-group {
+    margin-bottom: 20px;
+  }
+
+  .email-verification-label {
+    display: block;
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 700;
+    font-size: 0.8rem;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .email-verification-input {
+    width: 100%;
+    padding: 12px 16px;
+    background: rgba(42, 52, 88, 0.8);
+    border: 1px solid rgba(102, 126, 234, 0.2);
+    border-radius: 12px;
+    color: #ffffff;
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: 'Courier New', monospace;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+  }
+
+  .email-verification-input:focus {
+    background: rgba(42, 52, 88, 0.95);
+    border-color: #00f2fe;
+    outline: none;
+    box-shadow: 0 0 20px rgba(0, 242, 254, 0.3);
+  }
+
+  .email-verification-input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+  }
+
+  .email-verification-button {
+    width: 100%;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-weight: 800;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+  }
+
+  .email-verification-button:hover:not(:disabled) {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
+  }
+
+  .email-verification-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .email-verification-button.loading {
+    pointer-events: none;
+  }
+
+  .email-verification-helper-text {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.8rem;
+    margin-top: 8px;
+    text-align: center;
+  }
+
+  .email-verification-footer {
+    text-align: center;
+    margin-top: 20px;
+  }
+
+  .email-verification-close-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    text-decoration: underline;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: color 0.3s ease;
+  }
+
+  .email-verification-close-btn:hover {
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .email-verification-step-indicator {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 25px;
+  }
+
+  .email-verification-step {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(102, 126, 234, 0.3);
+    transition: all 0.3s ease;
+  }
+
+  .email-verification-step.active {
+    background: #667eea;
+    transform: scale(1.2);
+  }
+
+  @media (max-width: 480px) {
+    .email-verification-card {
+      padding: 35px 25px;
+    }
+
+    .email-verification-title {
+      font-size: 1.25rem;
+    }
+
+    .email-verification-input {
+      font-size: 16px;
+    }
+  }
+</style>
+
+<!-- Modal Overlay -->
+<div id="emailVerificationModal" class="email-verification-modal-overlay" x-data="emailVerificationApp()" @click.self="closeModal()">
+  <div class="email-verification-card">
+    
+    <!-- Icon -->
+    <div class="email-verification-icon">
+      <i class="fas fa-envelope" x-show="step === 1"></i>
+      <i class="fas fa-check-circle" x-show="step === 2"></i>
+    </div>
+
+    <!-- Title & Subtitle -->
+    <h2 class="email-verification-title" x-text="step === 1 ? 'Verify Email' : 'Code Verified!'"></h2>
+    <p class="email-verification-subtitle" x-text="step === 1 ? 'Confirm your email address to unlock premium features' : 'Your email has been successfully verified!'"></p>
+
+    <!-- Step Indicator -->
+    <div class="email-verification-step-indicator">
+      <div class="email-verification-step" :class="step === 1 ? 'active' : ''"></div>
+      <div class="email-verification-step" :class="step === 2 ? 'active' : ''"></div>
+    </div>
+
+    <!-- Error Message -->
+    <div class="email-verification-error" :class="errorMessage ? 'show' : ''" x-text="errorMessage"></div>
+
+    <!-- Success Message -->
+    <div class="email-verification-success" :class="successMessage ? 'show' : ''" x-text="successMessage"></div>
+
+    <!-- Step 1: Send Code -->
+    <div x-show="step === 1">
+      <div class="email-verification-form-group">
+        <label class="email-verification-label">Email Address</label>
+        <input 
+          type="email" 
+          class="email-verification-input" 
+          x-model="email" 
+          placeholder="your-email@example.com"
+          disabled
+          readonly
+        >
+        <small class="email-verification-helper-text">6-digit code will be sent to this email</small>
+      </div>
+
+      <button 
+        @click="sendCode()" 
+        :disabled="loading" 
+        class="email-verification-button"
+        :class="loading ? 'loading' : ''"
+      >
+        <span x-show="!loading"><i class="fas fa-paper-plane me-2"></i>Send Verification Code</span>
+        <span x-show="loading"><i class="fas fa-spinner fa-spin me-2"></i>Sending...</span>
+      </button>
+
+      <p class="email-verification-helper-text" style="margin-top: 15px; font-size: 0.75rem;">
+        Check your email inbox or spam folder. The code will expire in 15 minutes.
+      </p>
+    </div>
+
+    <!-- Step 2: Verify Code -->
+    <div x-show="step === 2">
+      <div class="email-verification-form-group">
+        <label class="email-verification-label">6-Digit Code</label>
+        <input 
+          type="text" 
+          id="verificationCodeInput"
+          class="email-verification-input" 
+          x-model="code" 
+          @input="handleCodeInput"
+          placeholder="000000"
+          maxlength="6"
+          inputmode="numeric"
+          autocomplete="off"
+          style="letter-spacing: 8px; text-align: center; font-size: 1.5rem;"
+        >
+        <small class="email-verification-helper-text">Enter the 6-digit code from your email</small>
+      </div>
+
+      <button 
+        @click="verifyCode()" 
+        :disabled="loading || code.length !== 6" 
+        class="email-verification-button"
+        :class="loading ? 'loading' : ''"
+      >
+        <span x-show="!loading"><i class="fas fa-check me-2"></i>Verify Code</span>
+        <span x-show="loading"><i class="fas fa-spinner fa-spin me-2"></i>Verifying...</span>
+      </button>
+
+      <p class="email-verification-helper-text" style="margin-top: 15px;">
+        Didn't receive the code? <button @click="step = 1" style="background: none; border: none; color: #667eea; cursor: pointer; font-weight: 700; text-decoration: underline;">Request new code</button>
+      </p>
+    </div>
+
+    <!-- Footer -->
+    <div class="email-verification-footer">
+      <button @click="closeModal()" class="email-verification-close-btn">
+        <span x-show="step === 1">Maybe later</span>
+        <span x-show="step === 2">Close</span>
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- Include this script -->
+<script>
+function emailVerificationApp() {
+  return {
+    step: 1,
+    code: '',
+    loading: false,
+    errorMessage: '',
+    successMessage: '',
+    email: '',
+
+    init() {
+      this.email = window.emailVerificationManager?.userEmail || '';
+    },
+
+    async sendCode() {
+      if (this.loading) return;
+      this.loading = true;
+      this.errorMessage = '';
+      this.successMessage = '';
+
+      const result = await window.emailVerificationManager?.sendVerificationCode();
+
+      if (result?.success) {
+        this.successMessage = result.message || 'Code sent! Check your email inbox.';
+        this.step = 2;
+        setTimeout(() => {
+          document.getElementById('verificationCodeInput')?.focus();
+        }, 100);
+      } else {
+        this.errorMessage = result?.error || 'Failed to send code. Please try again.';
+      }
+
+      this.loading = false;
+    },
+
+    async verifyCode() {
+      if (this.loading || this.code.length !== 6) return;
+      this.loading = true;
+      this.errorMessage = '';
+      this.successMessage = '';
+
+      const result = await window.emailVerificationManager?.verifyCode(this.code);
+
+      if (result?.success) {
+        this.successMessage = result.message || 'Email verified successfully!';
+        setTimeout(() => {
+          this.closeModal();
+        }, 2000);
+      } else {
+        this.errorMessage = result?.error || 'Verification failed. Please try again.';
+      }
+
+      this.loading = false;
+    },
+
+    handleCodeInput(event) {
+      this.code = event.target.value.replace(/[^\d]/g, '').slice(0, 6);
+      if (this.code.length === 6) {
+        setTimeout(() => this.verifyCode(), 100);
+      }
+    },
+
+    closeModal() {
+      this.step = 1;
+      this.code = '';
+      this.errorMessage = '';
+      this.successMessage = '';
+      const modal = document.getElementById('emailVerificationModal');
+      if (modal) {
+        modal.classList.remove('active');
+      }
+    },
+
+    openModal() {
+      const modal = document.getElementById('emailVerificationModal');
+      if (modal) {
+        modal.classList.add('active');
+        this.init();
+        this.step = 1;
+        this.code = '';
+        this.errorMessage = '';
+        this.successMessage = '';
+      }
+    }
+  };
+}
+</script>

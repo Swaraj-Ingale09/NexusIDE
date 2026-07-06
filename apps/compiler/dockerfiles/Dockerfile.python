@@ -1,0 +1,25 @@
+# Minimal Python sandbox for secure code execution
+# Security: Read-only root, no network, resource limits enforced at runtime
+
+FROM python:3.11-slim
+
+# Security: Create non-root user
+RUN groupadd -r runner && useradd -r -g runner runner
+
+# Install essential packages via pip
+RUN pip install --no-cache-dir \
+    matplotlib \
+    numpy \
+    scipy \
+    pandas
+
+# Create sandbox directory
+RUN mkdir -p /sandbox && chown runner:runner /sandbox
+
+WORKDIR /sandbox
+
+# Run as non-root user
+USER runner
+
+# Default command (can be overridden)
+CMD ["python"]

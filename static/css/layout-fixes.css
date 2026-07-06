@@ -1,0 +1,232 @@
+/* =====================================================
+   Layout Fixes - Prevents overflow and broken layouts
+   ===================================================== */
+
+/* Ensure no horizontal overflow */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* Fix Bootstrap containers */
+.container,
+.container-fluid {
+  width: 100%;
+  max-width: 100%;
+  padding-left: 20px !important;
+  padding-right: 20px !important;
+  margin: 0;
+}
+
+.container {
+  max-width: 1400px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+/* Fix rows and columns */
+.row {
+  width: 100%;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.col,
+.col-1, .col-2, .col-3, .col-4, .col-5, .col-6,
+.col-7, .col-8, .col-9, .col-10, .col-11, .col-12,
+.col-auto, .col-lg-1, .col-lg-2, .col-lg-3, .col-lg-4,
+.col-lg-5, .col-lg-6, .col-lg-7, .col-lg-8, .col-lg-9,
+.col-lg-10, .col-lg-11, .col-lg-12, .col-md-1, .col-md-2,
+.col-md-3, .col-md-4, .col-md-5, .col-md-6, .col-md-7,
+.col-md-8, .col-md-9, .col-md-10, .col-md-11, .col-md-12,
+.col-sm-1, .col-sm-2, .col-sm-3, .col-sm-4, .col-sm-5,
+.col-sm-6, .col-sm-7, .col-sm-8, .col-sm-9, .col-sm-10,
+.col-sm-11, .col-sm-12 {
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+}
+
+/* Fix main content */
+main {
+  width: 100%;
+  max-width: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+/* Fix navbar */
+.navbar {
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  z-index: 1000;
+}
+
+.navbar-collapse {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Fix footer */
+footer {
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;
+  margin-right: -50vw;
+  padding-left: 0;
+  padding-right: 0;
+  margin-top: 4rem;
+}
+
+/* Section wrappers */
+section {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Cards within grid */
+.card {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Fix alert messages */
+.alert {
+  width: 100%;
+  max-width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* Buttons full width on mobile */
+@media (max-width: 768px) {
+  .d-flex .btn {
+    flex: 1 1 auto;
+  }
+  
+  .container {
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+  
+  .col,
+  .col-sm-1, .col-sm-2, .col-sm-3, .col-sm-4, .col-sm-5,
+  .col-sm-6, .col-sm-7, .col-sm-8, .col-sm-9, .col-sm-10,
+  .col-sm-11, .col-sm-12 {
+    padding-left: 7px;
+    padding-right: 7px;
+  }
+}
+
+/* Fix for stretched elements */
+.w-100 {
+  width: 100% !important;
+  max-width: 100%;
+}
+
+/* Responsive images */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Fix for overflow in code editors and outputs */
+pre, code {
+  max-width: 100%;
+  overflow-x: auto;
+  word-wrap: break-word;
+}
+
+/* Ensure tables don't overflow */
+.table {
+  width: 100%;
+  overflow-x: auto;
+  display: block;
+}
+
+@media (min-width: 769px) {
+  .table {
+    display: table;
+  }
+}
+
+/* Fix grid gaps causing overflow */
+.row.g-0 {
+  margin-right: 0;
+  margin-left: 0;
+}
+
+.row.g-1 > * {
+  padding-right: 0.25rem;
+  padding-left: 0.25rem;
+}
+
+.row.g-2 > * {
+  padding-right: 0.5rem;
+  padding-left: 0.5rem;
+}
+
+.row.g-3 > * {
+  padding-right: 0.75rem;
+  padding-left: 0.75rem;
+}
+
+.row.g-4 > * {
+  padding-right: 1rem;
+  padding-left: 1rem;
+}
+
+.row.g-5 > * {
+  padding-right: 1.5rem;
+  padding-left: 1.5rem;
+}
+
+/* Fix modals staying within viewport */
+.modal {
+  width: 100vw;
+  left: 50%;
+  margin-left: -50vw;
+}
+
+.modal-dialog {
+  max-width: 500px;
+  width: 100%;
+  margin: auto;
+}
+
+/* Prevent text overflow */
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/* Fix dropdowns alignment */
+.dropdown-menu {
+  min-width: 100%;
+  max-width: 100%;
+}
+
+/* Prevent link underlines from causing overflow */
+a {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}

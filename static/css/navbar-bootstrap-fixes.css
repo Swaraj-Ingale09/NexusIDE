@@ -1,0 +1,333 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   NEXUSIDE NAVBAR - BOOTSTRAP COMPATIBILITY FIXES v2.0
+   Overrides and fixes for Bootstrap 5.3 navbar compatibility
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* Override Bootstrap default navbar styles */
+.navbar {
+  padding-top: 0.75rem !important;
+  padding-bottom: 0.75rem !important;
+}
+
+/* Ensure proper spacing and alignment */
+.navbar-brand {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  height: 50px;
+  display: flex;
+  align-items: center;
+}
+
+/* Fix navbar collapse area */
+.navbar-collapse {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Fix navbar nav spacing */
+.navbar .navbar-nav {
+  gap: 8px !important;
+}
+
+/* Ensure nav items don't overlap */
+.nav-item {
+  position: relative;
+}
+
+/* Fix nav links color and font */
+.navbar-light .nav-link,
+.nav-link {
+  color: rgba(203, 213, 225, 0.8) !important;
+}
+
+.navbar-light .nav-link:focus,
+.navbar-light .nav-link:hover,
+.nav-link:focus,
+.nav-link:hover {
+  color: #f8fafc !important;
+}
+
+/* Remove Bootstrap's default outline on focus */
+.navbar a:focus {
+  box-shadow: none !important;
+}
+
+/* Fix Bootstrap navbar-brand hover effects */
+.navbar-brand:hover,
+.navbar-brand:focus {
+  opacity: 1;
+}
+
+/* Ensure proper positioning context for dropdown */
+.nav-item:has(.user-dropdown) {
+  position: relative;
+}
+
+/* Fix dropdown positioning on smaller screens */
+@media (max-width: 991px) {
+  .user-dropdown {
+    position: fixed !important;
+    top: auto !important;
+    right: 12px !important;
+    left: auto !important;
+    margin-top: 8px !important;
+  }
+
+  .navbar-collapse {
+    padding: 12px 0 !important;
+    margin-top: 12px !important;
+  }
+
+  .navbar-collapse.show {
+    background: rgba(10, 13, 26, 0.95);
+    backdrop-filter: blur(20px);
+    border-radius: 0 0 12px 12px;
+    border-top: 1px solid rgba(102, 126, 234, 0.15);
+  }
+}
+
+/* Fix toggler button styling */
+.navbar-toggler {
+  border: 1px solid rgba(102, 126, 234, 0.3) !important;
+  padding: 8px 12px !important;
+  border-radius: 8px !important;
+  transition: all 0.25s ease !important;
+}
+
+.navbar-toggler:not(.collapsed) {
+  background: rgba(102, 126, 234, 0.1);
+  border-color: rgba(102, 126, 234, 0.5) !important;
+}
+
+.navbar-toggler:focus {
+  box-shadow: none !important;
+  outline: 2px solid rgba(0, 217, 255, 0.5) !important;
+  outline-offset: 2px !important;
+}
+
+.navbar-toggler:hover {
+  background: rgba(102, 126, 234, 0.1);
+  border-color: rgba(102, 126, 234, 0.5) !important;
+}
+
+/* Fix navbar text selection */
+.navbar-brand,
+.nav-link,
+.user-avatar-btn {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Ensure smooth transitions */
+.navbar * {
+  transition-property: background-color, border-color, color, box-shadow, transform;
+  transition-duration: 0.25s;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Fix z-index conflicts */
+.navbar {
+  z-index: 1000 !important;
+  position: sticky !important;
+  top: 0 !important;
+}
+
+.navbar-collapse {
+  z-index: 999;
+}
+
+.user-dropdown {
+  z-index: 1001 !important;
+}
+
+/* Light mode adjustments */
+@media (prefers-color-scheme: light) {
+  .navbar {
+    background: rgba(255, 255, 255, 0.9) !important;
+    border-bottom-color: rgba(102, 126, 234, 0.15) !important;
+  }
+
+  .navbar-brand {
+    color: #1e293b !important;
+  }
+
+  .nav-link {
+    color: rgba(51, 65, 85, 0.8) !important;
+  }
+
+  .navbar-toggler {
+    border-color: rgba(102, 126, 234, 0.2) !important;
+  }
+
+  .navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(51, 65, 85, 0.8)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+  }
+
+  .navbar-collapse.show {
+    background: rgba(255, 255, 255, 0.95) !important;
+  }
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .navbar-toggler-icon {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(203, 213, 225, 0.8)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+  }
+}
+
+/* Accessibility - High contrast mode */
+@media (prefers-contrast: more) {
+  .navbar {
+    border-bottom-width: 2px;
+  }
+
+  .nav-link {
+    font-weight: 600;
+  }
+
+  .user-avatar-btn {
+    border-width: 2px;
+  }
+}
+
+/* Accessibility - Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .navbar,
+  .navbar-brand,
+  .nav-link,
+  .navbar-toggler,
+  .user-avatar-btn,
+  .user-dropdown {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  .avatar-ring {
+    animation: none !important;
+    display: none;
+  }
+}
+
+/* Print styles */
+@media print {
+  .navbar {
+    position: static;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    height: auto;
+  }
+
+  .navbar-brand,
+  .nav-link,
+  .user-avatar-btn {
+    transition: none;
+  }
+
+  .navbar-collapse {
+    display: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   UTILITY CLASSES FOR NAVBAR
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.navbar-spacer {
+  height: 70px;
+}
+
+.navbar-shadow {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4) !important;
+}
+
+.navbar-blur {
+  backdrop-filter: blur(30px) !important;
+  -webkit-backdrop-filter: blur(30px) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   DROPDOWN MENU FIXES
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.user-dropdown .udrop-body a {
+  position: relative;
+  z-index: 1;
+}
+
+.user-dropdown .udrop-body a:active {
+  transform: scale(0.98);
+}
+
+/* Keyboard navigation focus states */
+.user-dropdown .udrop-item:focus-visible {
+  outline: 2px solid rgba(0, 217, 255, 0.5);
+  outline-offset: -4px;
+}
+
+/* Smooth scrolling for dropdowns if they overflow */
+.udrop-body {
+  max-height: 400px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(102, 126, 234, 0.3) transparent;
+}
+
+.udrop-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.udrop-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.udrop-body::-webkit-scrollbar-thumb {
+  background: rgba(102, 126, 234, 0.3);
+  border-radius: 3px;
+}
+
+.udrop-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(102, 126, 234, 0.5);
+}
+
+/* Ensure dropdown items are clickable */
+.udrop-item,
+.udrop-item:link,
+.udrop-item:visited {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+/* Fix for touch devices */
+@media (hover: none) and (pointer: coarse) {
+  .user-avatar-btn {
+    padding: 8px 12px;
+  }
+
+  .nav-link::before {
+    display: none;
+  }
+
+  .udrop-item {
+    padding: 14px 16px;
+  }
+}
+
+/* Ensure proper stacking order */
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.navbar-collapse.show {
+  position: relative;
+  z-index: 999;
+}
+
+.user-dropdown {
+  position: absolute;
+  z-index: 1001;
+}

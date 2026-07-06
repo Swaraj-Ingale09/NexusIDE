@@ -1,0 +1,523 @@
+/* ═══════════════════════════════════════════════════════════════════
+   NEXUSIDE COMPILER PAGE - ENHANCED PREMIUM DESIGN SYSTEM
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ──────────────────────────────────────────────────────────────────
+   PART 1: NAVBAR OVERRIDE FOR COMPILER PAGE
+   ────────────────────────────────────────────────────────────────── */
+
+.compiler-fullwidth .navbar {
+  margin: 0 !important;
+  padding-top: 1rem !important;
+  padding-bottom: 1rem !important;
+  border-radius: 0 !important;
+  width: 100vw !important;
+  position: relative;
+  left: 50% !important;
+  right: 50% !important;
+  margin-left: -50vw !important;
+  margin-right: -50vw !important;
+}
+
+/* Navbar container full width fix */
+.compiler-fullwidth .navbar .container-fluid {
+  width: 100% !important;
+  padding-left: 1.5rem !important;
+  padding-right: 1.5rem !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+}
+
+/* Brand styling */
+.compiler-fullwidth .navbar {
+  background: rgba(10, 14, 28, 0.92) !important;
+  border-bottom: 1px solid rgba(102, 126, 234, 0.12) !important;
+  box-shadow: 0 24px 64px rgba(10, 14, 28, 0.18) !important;
+  backdrop-filter: blur(20px) !important;
+}
+
+.compiler-fullwidth .navbar .container-fluid {
+  align-items: center !important;
+  gap: 1rem;
+}
+
+.compiler-fullwidth .navbar-brand {
+  gap: 14px !important;
+  padding: 0.25rem 0 !important;
+  transition: transform 0.25s ease, opacity 0.25s ease !important;
+}
+
+.compiler-fullwidth .navbar-brand:hover {
+  transform: scale(1.02);
+}
+
+.compiler-fullwidth .brand-icon {
+  width: 2.9rem !important;
+  height: 2.9rem !important;
+  border-radius: 16px !important;
+  background: linear-gradient(145deg, #3b82f6, #0ea5e9) !important;
+  display: grid !important;
+  place-items: center !important;
+  box-shadow: 0 18px 40px rgba(14, 165, 233, 0.25) !important;
+  color: #fff !important;
+}
+
+.compiler-fullwidth .brand-text {
+  display: flex !important;
+  flex-direction: column !important;
+  line-height: 1.05 !important;
+}
+
+.compiler-fullwidth .brand-name {
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+  color: #f8fafc !important;
+}
+
+.compiler-fullwidth .brand-sub {
+  font-size: 0.75rem !important;
+  color: rgba(248, 250, 252, 0.72) !important;
+}
+
+.compiler-fullwidth .navbar-nav.mx-auto {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: center !important;
+  gap: 0.45rem !important;
+}
+
+.compiler-fullwidth .nav-link {
+  font-weight: 600;
+  color: rgba(241, 245, 249, 0.78) !important;
+  transition: all 0.25s ease !important;
+  padding: 0.65rem 1.1rem !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.compiler-fullwidth .nav-link:hover {
+  color: #f8fafc !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+  transform: translateY(-1px) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+}
+
+.compiler-fullwidth .nav-link.active {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #5b7bff, #06b6d4) !important;
+  border-color: transparent !important;
+  box-shadow: 0 14px 30px rgba(59, 123, 255, 0.2) !important;
+}
+
+.compiler-fullwidth .compiler-nav-meta {
+  padding: 0.4rem 0.35rem !important;
+}
+
+.compiler-fullwidth .nav-meta-chip,
+.compiler-fullwidth .nav-meta-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.35rem !important;
+  padding: 0.45rem 0.9rem !important;
+  border-radius: 999px !important;
+  font-size: 0.78rem !important;
+  font-weight: 700 !important;
+}
+
+.compiler-fullwidth .nav-meta-chip {
+  color: #e2e8f0 !important;
+  background: rgba(15, 23, 42, 0.7) !important;
+  border: 1px solid rgba(148, 163, 184, 0.14) !important;
+}
+
+.compiler-fullwidth .nav-meta-pill {
+  color: #ffffff !important;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.92), rgba(14, 165, 233, 0.92)) !important;
+}
+
+/* User avatar button */
+.compiler-fullwidth .user-avatar-btn {
+  transition: transform 0.25s ease, box-shadow 0.25s ease !important;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12) !important;
+  background: rgba(15, 23, 42, 0.92) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.compiler-fullwidth .user-avatar-btn:hover {
+  transform: translateY(-2px) !important;
+}
+
+.compiler-fullwidth .navbar-toggler {
+  color: rgba(248, 250, 252, 0.9) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-radius: 14px !important;
+  padding: 0.5rem 0.65rem !important;
+}
+
+.compiler-fullwidth .navbar-toggler:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.compiler-fullwidth .navbar-toggler .fas {
+  font-size: 1.05rem !important;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   PART 2: COMPILER TOOLBAR SYSTEMATIC DESIGN
+   ────────────────────────────────────────────────────────────────── */
+
+.compiler-toolbar {
+  padding: 16px 24px 0 !important;
+}
+
+.compiler-toolbar-card {
+  position: relative;
+  display: grid;
+  gap: 20px;
+  background: rgba(10, 14, 31, 0.96) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 28px !important;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.2) !important;
+  backdrop-filter: blur(30px) !important;
+  -webkit-backdrop-filter: blur(30px) !important;
+  padding: 26px !important;
+  overflow: hidden;
+  z-index: 2;
+}
+
+.compiler-toolbar-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.18), transparent 28%),
+              radial-gradient(circle at bottom left, rgba(168, 85, 247, 0.14), transparent 22%);
+  pointer-events: none;
+}
+
+.compiler-toolbar-header {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 20px !important;
+  flex-wrap: wrap !important;
+}
+
+.compiler-toolbar-headline {
+  max-width: 640px;
+}
+
+.compiler-toolbar-eyebrow {
+  display: inline-block;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(168, 196, 255, 0.7);
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.compiler-toolbar-title {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 1.3rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.compiler-toolbar-description {
+  margin: 12px 0 0;
+  color: rgba(203, 213, 225, 0.72);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  max-width: 680px;
+}
+
+.compiler-toolbar-cta {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  flex-wrap: wrap !important;
+  justify-content: flex-end !important;
+}
+
+.compiler-status-chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 10px 16px !important;
+  border-radius: 999px !important;
+  background: rgba(34, 211, 238, 0.12) !important;
+  border: 1px solid rgba(34, 211, 238, 0.22) !important;
+  color: #d9f9ff !important;
+  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+}
+
+.compiler-status-dot {
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 50% !important;
+  background: #22d3ee !important;
+  box-shadow: 0 0 0 6px rgba(34, 211, 238, 0.14) !important;
+}
+
+.compiler-toolbar-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap: 18px !important;
+}
+
+.compiler-action-card {
+  display: grid !important;
+  gap: 14px !important;
+  padding: 20px !important;
+  border-radius: 24px !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+.compiler-action-card-title {
+  color: rgba(203, 213, 225, 0.72) !important;
+  font-size: 0.82rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.12em !important;
+  text-transform: uppercase !important;
+}
+
+.compiler-action-list {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 12px !important;
+}
+
+.compiler-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 10px 18px !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 14px !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: rgba(226, 232, 240, 0.95) !important;
+  font-weight: 600 !important;
+  font-size: 0.92rem !important;
+  cursor: pointer !important;
+  text-decoration: none !important;
+  transition: transform 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  white-space: nowrap !important;
+}
+
+.compiler-btn:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  border-color: rgba(56, 189, 248, 0.45) !important;
+  color: #f8fafc !important;
+  transform: translateY(-1px) !important;
+}
+
+.compiler-btn:active {
+  transform: translateY(0) !important;
+}
+
+.compiler-btn i {
+  font-size: 0.95rem !important;
+}
+
+.compiler-btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 52%, #f5576c 100%) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  box-shadow: 0 12px 28px rgba(102, 126, 234, 0.28) !important;
+}
+
+.compiler-btn-primary:hover {
+  box-shadow: 0 14px 32px rgba(102, 126, 234, 0.38) !important;
+}
+
+.compiler-btn-secondary {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
+  color: rgba(226, 232, 240, 0.95) !important;
+}
+
+.compiler-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.18) !important;
+}
+
+.compiler-btn:disabled {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+}
+
+@media (max-width: 1080px) {
+  .compiler-toolbar-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .compiler-toolbar-card {
+    padding: 20px !important;
+  }
+
+  .compiler-toolbar-header,
+  .compiler-toolbar-grid {
+    gap: 14px !important;
+  }
+
+  .compiler-toolbar-cta {
+    width: 100% !important;
+    justify-content: flex-start !important;
+  }
+
+  .compiler-action-list {
+    justify-content: flex-start !important;
+  }
+
+  .compiler-btn {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .compiler-toolbar {
+    padding: 12px 16px 0 !important;
+  }
+
+  .compiler-toolbar-card {
+    padding: 18px !important;
+  }
+
+  .compiler-toolbar-eyebrow,
+  .compiler-action-card-title {
+    font-size: 0.72rem !important;
+  }
+
+  .compiler-toolbar-title {
+    font-size: 1.15rem !important;
+  }
+
+  .compiler-btn {
+    padding: 10px 14px !important;
+    font-size: 0.85rem !important;
+  }
+
+  .compiler-btn span {
+    display: none !important;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   PART 3: LANGUAGE/STATUS INDICATORS
+   ────────────────────────────────────────────────────────────────── */
+
+/* ──────────────────────────────────────────────────────────────────
+   PART 3: LANGUAGE/STATUS INDICATORS
+   ────────────────────────────────────────────────────────────────── */
+
+.language-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 8px 14px !important;
+  border-radius: 10px !important;
+  background: linear-gradient(135deg, rgba(0, 217, 255, 0.1), rgba(102, 126, 234, 0.05)) !important;
+  border: 1px solid rgba(0, 217, 255, 0.3) !important;
+  color: #00d9ff !important;
+  font-weight: 600 !important;
+  font-size: 0.85rem !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  flex-shrink: 0 !important;
+  box-shadow: 0 4px 12px rgba(0, 217, 255, 0.1) !important;
+}
+
+.language-badge i {
+  font-size: 0.9rem !important;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   PART 4: STATUS INDICATORS
+   ────────────────────────────────────────────────────────────────── */
+
+.status-indicator {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 8px 12px !important;
+  border-radius: 10px !important;
+  background: rgba(6, 255, 165, 0.08) !important;
+  color: #06ffa5 !important;
+  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+}
+
+.status-indicator.running {
+  background: rgba(0, 217, 255, 0.08) !important;
+  color: #00d9ff !important;
+}
+
+.status-indicator.error {
+  background: rgba(255, 107, 107, 0.08) !important;
+  color: #ff6b6b !important;
+}
+
+/* Pulse animation */
+.status-indicator::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.3);
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   PART 5: RESPONSIVE DESIGN
+   ────────────────────────────────────────────────────────────────── */
+
+/* ──────────────────────────────────────────────────────────────────
+   PART 6: ACCESSIBILITY & MOTION
+   ────────────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .toolbar-btn,
+  .editor-toolbar,
+  .language-badge {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  .toolbar-btn::before,
+  .toolbar-btn.primary::before {
+    animation: none !important;
+  }
+}
+
+/* Focus states for keyboard navigation */
+.toolbar-btn:focus {
+  outline: 2px solid rgba(0, 217, 255, 0.5) !important;
+  outline-offset: 2px !important;
+}
+
+.toolbar-btn.primary:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.5) !important;
+  outline-offset: 2px !important;
+}
