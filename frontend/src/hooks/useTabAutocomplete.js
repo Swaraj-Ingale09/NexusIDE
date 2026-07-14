@@ -9,6 +9,8 @@ export function useTabAutocomplete(language) {
   const lastRequestRef = useRef(0);
 
   const registerProvider = useCallback((editor, monaco) => {
+    if (language?.id === 'sql') return null;
+
     const provider = monaco.languages.registerCompletionItemProvider(language?.id || 'python', {
       triggerCharacters: ['.', ' ', '(', ',', '\n'],
       provideCompletionItems: async (model, position) => {

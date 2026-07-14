@@ -6,7 +6,7 @@ import AnimatedCounter from '../components/AnimatedCounter';
 import {
   Code2, Sparkles, ShieldCheck, Terminal, Trophy,
   ArrowRight, Play, Brain, GitBranch, BarChart3,
-  Zap, FileCode, MessageSquare, Layers,
+  Zap, FileCode, MessageSquare, Layers, Database,
 } from 'lucide-react';
 
 const Home = () => {
@@ -82,7 +82,7 @@ const Home = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
           >
-            NexusIDE is a browser-based development environment where you can write, execute, and debug Python, C, and C++ code — with an AI assistant that explains errors, suggests fixes, and helps you learn as you build.
+            NexusIDE is a browser-based development environment where you can write, execute, and debug Python, C, C++, and SQL code — with an AI assistant that explains errors, suggests fixes, and helps you learn as you build.
           </motion.p>
 
           <motion.div
@@ -134,17 +134,20 @@ const Home = () => {
                   <motion.div className="w-2.5 h-2.5 rounded-full bg-yellow-400" whileHover={{ scale: 1.4 }} />
                   <motion.div className="w-2.5 h-2.5 rounded-full bg-green-400" whileHover={{ scale: 1.4 }} />
                 </div>
-                <span className="text-[10px] font-mono text-muted-soft">fibonacci.py</span>
+                <div className="flex gap-2">
+                  <span className="text-[10px] font-mono text-muted-soft px-2 py-0.5 rounded bg-surface-soft border border-hairline-soft">fibonacci.py</span>
+                  <span className="text-[10px] font-mono text-brand-teal px-2 py-0.5 rounded bg-brand-teal/10 border border-brand-teal/20">query.sql</span>
+                </div>
               </div>
               <pre className="font-mono text-xs text-body leading-relaxed overflow-x-auto select-none">
                 <code>
-                  <span className="text-brand-pink">def</span> <span className="text-brand-teal">fibonacci</span>(n):<br />
-                  &nbsp;&nbsp;&nbsp;&nbsp;<span className="text-muted-soft">"""Return the n-th Fibonacci number."""</span><br />
-                  &nbsp;&nbsp;&nbsp;&nbsp;<span className="text-brand-pink">if</span> n &lt;= <span className="text-indigo-500">1</span>:<br />
-                  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span className="text-brand-pink">return</span> n<br />
-                  &nbsp;&nbsp;&nbsp;&nbsp;<span className="text-brand-pink">return</span> fibonacci(n-<span className="text-indigo-500">1</span>) + fibonacci(n-<span className="text-indigo-500">2</span>)<br /><br />
-                  <span className="text-muted-soft"># Run and see output instantly</span><br />
-                  print(fibonacci(<span className="text-indigo-500">10</span>))
+                  <span className="text-brand-pink">SELECT</span> c.CustomerName, p.ProductName,<br />
+                  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;o.Quantity * p.Price <span className="text-brand-pink">AS</span> TotalCost<br />
+                  <span className="text-brand-pink">FROM</span> Orders o<br />
+                  <span className="text-brand-pink">JOIN</span> Customers c <span className="text-brand-pink">ON</span> o.CustomerID = c.CustomerID<br />
+                  <span className="text-brand-pink">JOIN</span> Products p <span className="text-brand-pink">ON</span> o.ProductID = p.ProductID<br />
+                  <span className="text-brand-pink">ORDER BY</span> TotalCost <span className="text-brand-pink">DESC</span><br />
+                  <span className="text-brand-pink">LIMIT</span> <span className="text-indigo-500">5</span>;
                 </code>
               </pre>
             </div>
@@ -161,7 +164,7 @@ const Home = () => {
                 </div>
                 <div className="text-xs">
                   <div className="font-semibold">AI Explains</div>
-                  <div className="opacity-80">"This recursive approach works but has O(2^n) time complexity"</div>
+                  <div className="opacity-80">"This JOIN filters top 5 orders by total cost across customers and products"</div>
                 </div>
               </div>
               <div className="text-[10px] bg-white/20 px-2 py-0.5 rounded-pill font-mono">Explain</div>
@@ -184,7 +187,7 @@ const Home = () => {
             A complete coding environment, in your browser.
           </h2>
           <p className="text-muted font-body text-sm leading-relaxed">
-            NexusIDE combines a code editor, compiler, AI assistant, and project manager into a single platform. Write Python, C, or C++ code, run it instantly, see results — including matplotlib charts rendered directly in the output — and get AI-powered explanations for every error or suggestion. No installations. No configuration. Just open and code.
+            NexusIDE combines a code editor, compiler, AI assistant, and project manager into a single platform. Write Python, C, C++, or SQL code, run it instantly, see results — including matplotlib charts and live query results — and get AI-powered explanations for every error or suggestion. No installations. No configuration. Just open and code.
           </p>
         </motion.div>
 
@@ -196,9 +199,9 @@ const Home = () => {
           viewport={{ once: true }}
         >
           {[
-            { icon: Code2, title: 'Write & Run Instantly', desc: 'Type code, hit Run. Output appears in milliseconds. Supports Python 3.14, C (GCC), and C++ with full standard libraries.' },
-            { icon: Brain, title: 'AI That Actually Helps', desc: 'Ask the AI to explain your code, find bugs, optimize performance, or generate tests. It reads your code AND your execution errors to give contextual help.' },
-            { icon: Layers, title: 'Organize Everything', desc: 'Save code as snippets, group them into projects with multiple files, share with the community, or keep them private.' },
+            { icon: Code2, title: 'Write & Run Instantly', desc: 'Type code, hit Run. Output appears in milliseconds. Supports Python 3.14, C (GCC), C++, and SQL with an interactive schema browser and live query execution.' },
+            { icon: Brain, title: 'AI That Actually Helps', desc: 'Ask the AI to explain your code, find bugs, optimize performance, generate SQL queries, or debug errors. It reads your code AND your execution errors to give contextual help.' },
+            { icon: Layers, title: 'Organize Everything', desc: 'Save code as snippets, manage SQL schemas across sessions, group files into projects, share with the community, or keep them private.' },
           ].map((item, i) => (
             <motion.div
               key={i}
@@ -243,7 +246,8 @@ const Home = () => {
         >
           {[
             { icon: Sparkles, title: 'AI Code Assistant', desc: 'Explain, fix, optimize, debug, format, or generate tests for any code. The AI reads your execution output and errors to provide context-aware suggestions — not generic responses.', color: 'bg-brand-pink/10 text-brand-pink', tag: 'AI' },
-            { icon: ShieldCheck, title: 'Sandboxed Execution', desc: 'Code runs in isolated Docker containers with strict memory, CPU, and process limits. Python, C, and C++ are fully supported with timeout protection and resource caps.', color: 'bg-brand-teal/10 text-brand-teal', tag: 'SECURE' },
+            { icon: ShieldCheck, title: 'Sandboxed Execution', desc: 'Code runs in isolated Docker containers with strict memory, CPU, and process limits. Python, C, C++, and SQL are fully supported with timeout protection and resource caps.', color: 'bg-brand-teal/10 text-brand-teal', tag: 'SECURE' },
+            { icon: Database, title: 'SQL Playground', desc: 'Write and execute SQL queries against a live in-memory SQLite database. Browse schemas, create tables, run joins, and let the AI generate or optimize queries for you.', color: 'bg-brand-lavender/10 text-brand-lavender', tag: 'SQL' },
             { icon: BarChart3, title: 'Matplotlib Visualization', desc: 'Python plots and animations render directly in the output panel. Run matplotlib code and see charts, graphs, and animated visualizations without leaving the editor.', color: 'bg-brand-lavender/10 text-brand-lavender', tag: 'VISUAL' },
             { icon: Terminal, title: 'Interactive Input', desc: 'Programs that need user input work seamlessly. Toggle the input panel, type your data, and run — stdin is passed directly to your program.', color: 'bg-brand-peach/10 text-brand-peach', tag: 'INTERACTIVE' },
             { icon: GitBranch, title: 'Project Management', desc: 'Create multi-file projects, add dependencies, track versions, and manage files — all from the browser. Open any file directly in the editor with auto-save.', color: 'bg-brand-ochre/10 text-brand-ochre', tag: 'ORGANIZE' },
@@ -300,11 +304,11 @@ const Home = () => {
               viewport={{ once: true }}
             >
               {[
-                { action: 'Explain', desc: 'Break down any code line-by-line. Understand what it does and why.' },
+                { action: 'Explain', desc: 'Break down any code line-by-line — from Python functions to SQL JOINs.' },
                 { action: 'Fix', desc: 'Auto-detect errors from execution output and suggest working corrections.' },
-                { action: 'Optimize', desc: 'Get performance improvements, readability suggestions, and best practices.' },
+                { action: 'Optimize', desc: 'Get performance improvements, index suggestions for SQL, and best practices.' },
                 { action: 'Debug', desc: 'Analyze error traces, identify root causes, and provide step-by-step fixes.' },
-                { action: 'Format', desc: 'Auto-format code to follow language conventions and style guides.' },
+                { action: 'Generate', desc: 'Describe what you need in plain English — get working SQL or code back.' },
                 { action: 'Test', desc: 'Generate unit tests for your functions with edge case coverage.' },
               ].map((item, i) => (
                 <motion.div key={i} variants={itemVariants} className="flex items-start gap-3">
@@ -333,16 +337,16 @@ const Home = () => {
                 viewport={{ once: true }}
                 transition={{ delay: 0.3 }}
               >
-                <span className="text-brand-teal font-semibold">You:</span> Why is this loop so slow?
+                <span className="text-brand-teal font-semibold">You:</span> Optimize this SQL query — it's slow on large datasets
               </motion.div>
               <motion.div
-                className="bg-brand-pink/5 border border-brand-pink/20 rounded-lg p-3 text-xs text-body"
+                className="bg-brand-pink/5 border border-brand-pink/20 rounded-lg p-3 text-xs text-body font-mono"
                 initial={{ opacity: 0, x: 20 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.5 }}
               >
-                <span className="text-brand-pink font-semibold">AI:</span> Your nested loop runs in O(n²) time. The inner list comprehension on line 12 re-scans the entire array each iteration. Use a set lookup for O(1) membership testing instead — this alone cuts execution from 2.4s to 0.03s on 10k elements.
+                <span className="text-brand-pink font-semibold">AI:</span> Your query does a full table scan on Orders. Add an index on <code className="bg-surface-soft px-1 rounded">Orders(CustomerID, ProductID)</code> and rewrite the subquery as a JOIN — this cuts execution from 1.2s to 12ms on 50k rows.
               </motion.div>
               <motion.div
                 className="bg-surface-soft rounded-lg p-3 text-xs text-body"
@@ -351,7 +355,7 @@ const Home = () => {
                 viewport={{ once: true }}
                 transition={{ delay: 0.7 }}
               >
-                <span className="text-brand-teal font-semibold">You:</span> Show me the fix
+                <span className="text-brand-teal font-semibold">You:</span> Show me the optimized query
               </motion.div>
               <motion.div
                 className="bg-brand-teal/5 border border-brand-teal/20 rounded-lg p-3 text-xs text-body font-mono"
@@ -360,12 +364,13 @@ const Home = () => {
                 viewport={{ once: true }}
                 transition={{ delay: 0.9 }}
               >
-                <span className="text-brand-pink">def</span> <span className="text-brand-teal">find_pairs</span>(nums, target):<br />
-                &nbsp;&nbsp;&nbsp;&nbsp;seen = set()<br />
-                &nbsp;&nbsp;&nbsp;&nbsp;<span className="text-brand-pink">for</span> n <span className="text-brand-pink">in</span> nums:<br />
-                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span className="text-brand-pink">if</span> target - n <span className="text-brand-pink">in</span> seen:<br />
-                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span className="text-brand-pink">yield</span> (target - n, n)<br />
-                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;seen.add(n)
+                <span className="text-brand-pink">CREATE INDEX</span> idx_orders_cust_prod<br />
+                <span className="text-brand-pink">ON</span> Orders(CustomerID, ProductID);<br /><br />
+                <span className="text-brand-pink">SELECT</span> c.CustomerName, p.ProductName,<br />
+                &nbsp;&nbsp;&nbsp;&nbsp;o.Quantity * p.Price <span className="text-brand-pink">AS</span> TotalCost<br />
+                <span className="text-brand-pink">FROM</span> Orders o<br />
+                <span className="text-brand-pink">JOIN</span> Customers c <span className="text-brand-pink">USING</span>(CustomerID)<br />
+                <span className="text-brand-pink">JOIN</span> Products p <span className="text-brand-pink">USING</span>(ProductID);
               </motion.div>
             </div>
           </motion.div>
@@ -393,9 +398,9 @@ const Home = () => {
           viewport={{ once: true }}
         >
           {[
-            { step: '01', title: 'Write Code', desc: 'Open the editor, pick Python/C/C++, and start typing. Syntax highlighting, auto-indent, and error detection work out of the box.', icon: FileCode },
-            { step: '02', title: 'Run & See Results', desc: 'Hit Ctrl+Enter. Your code executes in a secure sandbox. Output, errors, and matplotlib plots appear instantly in the output panel.', icon: Zap },
-            { step: '03', title: 'Learn with AI', desc: 'Stuck? Ask the AI to explain, fix, or optimize. It reads your code and errors to give real help — not generic suggestions.', icon: Brain },
+            { step: '01', title: 'Write Code', desc: 'Open the editor, pick Python, C, C++, or SQL, and start typing. Syntax highlighting, auto-indent, and error detection work out of the box.', icon: FileCode },
+            { step: '02', title: 'Run & See Results', desc: 'Hit Ctrl+Enter. Your code executes in a secure sandbox. Output, errors, matplotlib plots, and SQL query results appear instantly.', icon: Zap },
+            { step: '03', title: 'Learn with AI', desc: 'Stuck? Ask the AI to explain, fix, optimize, or generate SQL queries. It reads your code and errors to give real help — not generic suggestions.', icon: Brain },
           ].map((item, i) => (
             <motion.div
               key={i}
@@ -417,6 +422,100 @@ const Home = () => {
         </motion.div>
       </section>
 
+      {/* ─── Language Showcase ─── */}
+      <section className="max-w-7xl mx-auto px-4 md:px-8 py-16">
+        <motion.div
+          className="text-center max-w-2xl mx-auto mb-16 flex flex-col gap-3"
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+        >
+          <span className="text-xs font-semibold tracking-widest text-muted-soft uppercase">Multi-Language Support</span>
+          <h2 className="font-display text-4xl md:text-5xl tracking-tight text-ink font-medium leading-[1.1]">
+            One editor. Four languages.
+          </h2>
+          <p className="text-muted font-body text-sm leading-relaxed">
+            Switch between Python, C, C++, and SQL with a single click. Each language gets full syntax highlighting, smart code completion, and dedicated AI assistance.
+          </p>
+        </motion.div>
+
+        <motion.div
+          className="grid grid-cols-1 md:grid-cols-2 gap-6"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: '-80px' }}
+        >
+          {[
+            {
+              lang: 'Python',
+              color: '#5cb8a0',
+              bg: 'bg-brand-teal/5',
+              border: 'border-brand-teal/20',
+              icon: '🐍',
+              desc: 'General-purpose scripting, data science, automation',
+              code: `def quicksort(arr):\n    if len(arr) <= 1:\n        return arr\n    pivot = arr[len(arr) // 2]\n    left = [x for x in arr if x < pivot]\n    mid = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    return quicksort(left) + mid + quicksort(right)`,
+              ai: 'O(n log n) average — good use of list comprehensions',
+            },
+            {
+              lang: 'C',
+              color: '#e09060',
+              bg: 'bg-brand-peach/5',
+              border: 'border-brand-peach/20',
+              icon: '⚙️',
+              desc: 'Systems programming, embedded, performance-critical',
+              code: `#include <stdio.h>\n#include <stdlib.h>\n\nint fibonacci(int n) {\n    if (n <= 1) return n;\n    int a = 0, b = 1;\n    for (int i = 2; i <= n; i++) {\n        int temp = a + b;\n        a = b;\n        b = temp;\n    }\n    return b;\n}`,
+              ai: 'Iterative — O(n) time, O(1) space, no stack overflow risk',
+            },
+            {
+              lang: 'C++',
+              color: '#9a7acc',
+              bg: 'bg-brand-lavender/5',
+              border: 'border-brand-lavender/20',
+              icon: '🔧',
+              desc: 'OOP, STL, competitive programming, game engines',
+              code: `#include <vector>\n#include <algorithm>\nusing namespace std;\n\nint maxSubarraySum(vector<int>& nums) {\n    int maxSum = nums[0], curSum = nums[0];\n    for (int i = 1; i < nums.size(); i++) {\n        curSum = max(nums[i], curSum + nums[i]);\n        maxSum = max(maxSum, curSum);\n    }\n    return maxSum;\n}`,
+              ai: "Kadane's algorithm — O(n) time, handles all-negative arrays",
+            },
+            {
+              lang: 'SQL',
+              color: '#5cb8a0',
+              bg: 'bg-brand-teal/5',
+              border: 'border-brand-teal/20',
+              icon: '🗄️',
+              desc: 'Data queries, analytics, reporting, schema design',
+              code: `SELECT c.CustomerName,\n       COUNT(o.OrderID) AS TotalOrders,\n       SUM(o.Quantity * p.Price) AS LifetimeValue\nFROM Customers c\nLEFT JOIN Orders o\n  ON c.CustomerID = o.CustomerID\nLEFT JOIN Products p\n  ON o.ProductID = p.ProductID\nGROUP BY c.CustomerName\nORDER BY LifetimeValue DESC\nLIMIT 10;`,
+              ai: 'LEFT JOIN ensures customers with no orders still appear',
+            },
+          ].map((item, idx) => (
+            <motion.div
+              key={idx}
+              variants={itemVariants}
+              whileHover={{ y: -6, scale: 1.01 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 12 }}
+              className={`rounded-xl border border-hairline overflow-hidden hover:border-hairline-soft transition-all cursor-default`}
+            >
+              <div className={`flex items-center gap-3 px-5 py-3 border-b border-hairline ${item.bg}`}>
+                <span className="text-lg">{item.icon}</span>
+                <div>
+                  <span className="font-display text-sm font-semibold text-ink">{item.lang}</span>
+                  <span className="text-xs text-muted ml-2">{item.desc}</span>
+                </div>
+              </div>
+              <div className="bg-canvas p-4">
+                <pre className="font-mono text-[11px] text-body leading-relaxed overflow-x-auto select-none">
+                  <code>{item.code}</code>
+                </pre>
+              </div>
+              <div className={`px-5 py-2.5 ${item.bg} border-t ${item.border} flex items-center gap-2`}>
+                <Sparkles size={10} style={{ color: item.color }} />
+                <span className="text-[10px] text-muted font-body">{item.ai}</span>
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
+      </section>
+
       {/* ─── Stats ─── */}
       <section className="max-w-7xl mx-auto px-4 md:px-8 py-12">
         <motion.div
@@ -427,8 +526,8 @@ const Home = () => {
           viewport={{ once: true }}
         >
           {[
-            { value: 3, label: 'Languages Supported', sub: 'Python, C, C++' },
-            { value: 6, label: 'AI Actions', sub: 'Explain, Fix, Optimize, Debug, Format, Test' },
+            { value: 4, label: 'Languages Supported', sub: 'Python, C, C++, SQL' },
+            { value: 6, label: 'AI Actions', sub: 'Explain, Fix, Optimize, Generate, Format, Test' },
             { value: 1, label: 'Execution Time', suffix: '<1s', sub: 'Sandboxed code runs in under a second' },
             { value: 100, label: 'Free & Open', suffix: '%', sub: 'No paywalls, no limits on usage' },
           ].map((stat, i) => (

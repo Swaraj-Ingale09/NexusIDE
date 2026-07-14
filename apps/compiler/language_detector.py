@@ -1,6 +1,6 @@
 """
-Language Detection - PYTHON, C, C++ ONLY
-Auto-detects: Python, C, C++ languages
+Language Detection - PYTHON, C, C++, SQL
+Auto-detects: Python, C, C++, SQL languages
 """
 
 import re
@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class LanguageDetector:
-    """Detects PYTHON, C, C++ ONLY"""
+    """Detects PYTHON, C, C++, SQL"""
     
     LANGUAGE_PATTERNS = {
         'python': [
@@ -37,6 +37,14 @@ class LanguageDetector:
             r'cin\s*>>',
             r'new\s+\w+',
         ],
+        'sql': [
+            r'(?i)^\s*select\s+.*\s+from\s+',
+            r'(?i)^\s*insert\s+into\s+',
+            r'(?i)^\s*update\s+\w+\s+set\s+',
+            r'(?i)^\s*create\s+table\s+',
+            r'(?i)^\s*delete\s+from\s+',
+            r'(?i)^\s*alter\s+table\s+',
+        ],
     }
     
     EXTENSION_MAP = {
@@ -47,6 +55,7 @@ class LanguageDetector:
         '.cc': 'cpp',
         '.cxx': 'cpp',
         '.hpp': 'cpp',
+        '.sql': 'sql',
     }
     
     @staticmethod
@@ -95,10 +104,16 @@ class LanguageDetector:
                 'icon': '⚙️',
                 'description': 'C++ - Object-oriented programming',
             },
+            'sql': {
+                'name': 'SQL',
+                'extensions': ['.sql'],
+                'icon': '🗄️',
+                'description': 'SQL - Structured Query Language for databases',
+            },
         }
         return info.get(language.lower(), {'name': language, 'icon': '💻'})
     
     @staticmethod
     def get_supported_languages() -> list:
         """Get supported languages"""
-        return ['python', 'c', 'cpp']
+        return ['python', 'c', 'cpp', 'sql']

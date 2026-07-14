@@ -17,11 +17,13 @@ import {
 } from 'lucide-react';
 import { useTabAutocomplete } from '../hooks/useTabAutocomplete';
 import { useAIStreaming } from '../hooks/useAIStreaming';
+import SQLPlayground from '../components/SQLPlayground';
 
 const LANGUAGES = [
   { id: 'python', label: 'Python', icon: '🐍', defaultCode: '# Welcome to NexusIDE\nprint("Hello, World!")' },
   { id: 'c', label: 'C', icon: '⚙️', defaultCode: '#include <stdio.h>\n\nint main() {\n    printf("Hello, World!\\n");\n    return 0;\n}' },
   { id: 'cpp', label: 'C++', icon: '⚡', defaultCode: '#include <iostream>\nusing namespace std;\n\nint main() {\n    cout << "Hello, World!" << endl;\n    return 0;\n}' },
+  { id: 'sql', label: 'SQL', icon: '🗄️', defaultCode: '-- Welcome to NexusIDE SQL Playground\n-- Try querying the pre-loaded tables:\nSELECT * FROM Customers;' },
 ];
 
 const TEMPLATES = {
@@ -47,6 +49,14 @@ const TEMPLATES = {
     { name: 'Vector', code: '#include <iostream>\n#include <vector>\nusing namespace std;\n\nint main() {\n    vector<int> nums = {1, 2, 3, 4, 5};\n    for (int n : nums) {\n        cout << n << " ";\n    }\n    return 0;\n}' },
     { name: 'Class', code: '#include <iostream>\n#include <string>\nusing namespace std;\n\nclass Person {\npublic:\n    string name;\n    int age;\n    Person(string n, int a) : name(n), age(a) {}\n    void display() {\n        cout << name << ", " << age << endl;\n    }\n};\n\nint main() {\n    Person p("Alice", 30);\n    p.display();\n    return 0;\n}' },
     { name: 'Map', code: '#include <iostream>\n#include <map>\nusing namespace std;\n\nint main() {\n    map<string, int> ages;\n    ages["Alice"] = 30;\n    ages["Bob"] = 25;\n    for (auto& [name, age] : ages) {\n        cout << name << ": " << age << endl;\n    }\n    return 0;\n}' },
+  ],
+  sql: [
+    { name: 'Select All Customers', code: 'SELECT * FROM Customers;' },
+    { name: 'Select with Filter', code: 'SELECT CustomerName, City, Country\nFROM Customers\nWHERE Country = \'Germany\';' },
+    { name: 'Join Query', code: 'SELECT c.CustomerName, p.ProductName, o.Quantity\nFROM Orders o\nJOIN Customers c ON o.CustomerID = c.CustomerID\nJOIN Products p ON o.ProductID = p.ProductID\nORDER BY o.Quantity DESC;' },
+    { name: 'Aggregate', code: 'SELECT Country, COUNT(*) AS CustomerCount\nFROM Customers\nGROUP BY Country\nORDER BY CustomerCount DESC;' },
+    { name: 'Products Above Average', code: 'SELECT ProductName, Price\nFROM Products\nWHERE Price > (SELECT AVG(Price) FROM Products)\nORDER BY Price DESC;' },
+    { name: 'Insert', code: 'INSERT INTO Customers (CustomerName, ContactName, City, Country)\nVALUES (\'New Corp\', \'John Doe\', \'New York\', \'USA\');\n\nSELECT * FROM Customers;' },
   ],
 };
 
@@ -175,6 +185,7 @@ const EditorPage = () => {
       if (name.endsWith('.py')) return LANGUAGES[0];
       if (name.endsWith('.c')) return LANGUAGES[1];
       if (name.endsWith('.cpp') || name.endsWith('.cc')) return LANGUAGES[2];
+      if (name.endsWith('.sql')) return LANGUAGES[3];
     }
     return LANGUAGES[0];
   };
@@ -398,6 +409,7 @@ const EditorPage = () => {
     if (name.endsWith('.py')) return LANGUAGES[0];
     if (name.endsWith('.c') && !name.endsWith('.cpp') && !name.endsWith('.cc')) return LANGUAGES[1];
     if (name.endsWith('.cpp') || name.endsWith('.cc') || name.endsWith('.cxx')) return LANGUAGES[2];
+    if (name.endsWith('.sql')) return LANGUAGES[3];
     return null;
   };
 
@@ -448,15 +460,15 @@ const EditorPage = () => {
         content: responseText,
       }]);
 
-      // Auto-apply code for fix, optimize, debug actions
-      if (['fix', 'optimize', 'debug'].includes(action) && extractedCode) {
+      // Auto-apply code for fix, optimize, debug, generate actions
+      if (['fix', 'optimize', 'debug', 'generate'].includes(action) && extractedCode) {
         setCode(extractedCode);
         updateCodeStats(extractedCode);
         if (editorRef.current) {
           editorRef.current.focus();
         }
-        const actionLabel = action.charAt(0).toUpperCase() + action.slice(1);
-        setToast({ message: `${actionLabel} applied — code updated in editor`, type: 'success' });
+        const actionLabel = action === 'generate' ? 'Code generated' : `${action.charAt(0).toUpperCase() + action.slice(1)} applied`;
+        setToast({ message: `${actionLabel} — code updated in editor`, type: 'success' });
         setTimeout(() => setToast(null), 4000);
       }
     } catch (err) {
@@ -664,6 +676,18 @@ const EditorPage = () => {
   }, []);
 
   const outputLines = output ? output.split('\n').length : 0;
+
+  if (language.id === 'sql') {
+    return (
+      <div className={`flex flex-col ${isFullscreen ? 'fixed inset-0 z-50' : 'h-[calc(100vh-64px)]'} bg-[var(--color-canvas)]`}>
+        <SQLPlayground
+          languages={LANGUAGES}
+          currentLanguage={language}
+          onSwitchLanguage={(lang) => { switchLanguage(lang); }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={`flex flex-col ${isFullscreen ? 'fixed inset-0 z-50' : 'h-[calc(100vh-64px)]'} bg-[var(--color-canvas)]`}>
@@ -1076,7 +1100,55 @@ const EditorPage = () => {
                                 <CheckCircle2 size={11} /> Execution Successful
                               </div>
                             )}
-                            <pre className="text-xs font-mono text-[var(--color-ink)] whitespace-pre-wrap break-words leading-relaxed">{output}</pre>
+                            {output.includes('SQL Error:') ? (
+                              <pre className="text-xs font-mono text-[#dc2626] whitespace-pre-wrap break-words leading-relaxed bg-[#dc2626]/5 p-2 rounded-md border border-[#dc2626]/20">{output}</pre>
+                            ) : language.id === 'sql' ? (
+                              (() => {
+                                try {
+                                  const parsed = JSON.parse(output);
+                                  if (parsed.type === 'table') {
+                                    return (
+                                      <div className="overflow-auto rounded-lg border border-[var(--color-hairline)]">
+                                        <table className="w-full text-xs font-mono">
+                                          <thead>
+                                            <tr className="bg-[var(--color-surface-card)] border-b border-[var(--color-hairline)]">
+                                              {parsed.columns.map((col, ci) => (
+                                                <th key={ci} className="px-3 py-2 text-left font-semibold text-[var(--color-ink)]">{col}</th>
+                                              ))}
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {parsed.rows.map((row, ri) => (
+                                              <tr key={ri} className={`border-b border-[var(--color-hairline)]/50 ${ri % 2 === 0 ? 'bg-[var(--color-canvas)]' : 'bg-[var(--color-surface-soft)]'}`}>
+                                                {row.map((cell, ci) => (
+                                                  <td key={ci} className="px-3 py-1.5 text-[var(--color-ink)]">{cell === null ? <span className="text-[var(--color-muted-soft)] italic">NULL</span> : String(cell)}</td>
+                                                ))}
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                        <div className="px-3 py-1.5 bg-[var(--color-surface-card)] border-t border-[var(--color-hairline)] text-[10px] text-[var(--color-muted)]">
+                                          {parsed.rows.length} row{parsed.rows.length !== 1 ? 's' : ''} returned
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  if (parsed.type === 'message') {
+                                    return (
+                                      <div className="flex items-center gap-2 px-3 py-2 bg-[#5cb8a0]/10 border border-[#5cb8a0]/30 rounded-lg text-xs text-[#5cb8a0]">
+                                        <CheckCircle2 size={12} />
+                                        {parsed.message}
+                                      </div>
+                                    );
+                                  }
+                                } catch {
+                                  // Fall through to default rendering
+                                }
+                                return <pre className="text-xs font-mono text-[var(--color-ink)] whitespace-pre-wrap break-words leading-relaxed">{output}</pre>;
+                              })()
+                            ) : (
+                              <pre className="text-xs font-mono text-[var(--color-ink)] whitespace-pre-wrap break-words leading-relaxed">{output}</pre>
+                            )}
                           </>
                         )}
                         {artifacts.length > 0 && (
@@ -1200,6 +1272,7 @@ const EditorPage = () => {
 
               <div className="flex gap-1.5 px-3 py-2 border-b border-[var(--color-hairline)] overflow-x-auto">
                 {[
+                  { label: 'Generate', icon: Sparkles, action: 'generate' },
                   { label: 'Explain', icon: MessageSquare, action: 'explain' },
                   { label: 'Fix', icon: Bug, action: 'fix' },
                   { label: 'Optimize', icon: Zap, action: 'optimize' },
@@ -1209,7 +1282,7 @@ const EditorPage = () => {
                 ].map(({ label, icon: Icon, action }) => (
                   <button
                     key={label}
-                    onClick={() => { setAiInput(label); setAiAction(action); sendAIMessage(action); }}
+                    onClick={() => { setAiInput(label); setAiAction(action); if (action === 'generate') { /* don't auto-send — let user type a prompt */ } else { sendAIMessage(action); } }}
                     disabled={aiLoading}
                     className="flex items-center gap-1 px-2 py-1 bg-[var(--color-surface-card)] hover:bg-[var(--color-surface-soft)] border border-[var(--color-hairline)] rounded-md text-[10px] text-[#5cb8a0] whitespace-nowrap transition-all disabled:opacity-50"
                   >
@@ -1225,6 +1298,7 @@ const EditorPage = () => {
                     <Sparkles size={28} className="mx-auto mb-2 text-hairline" />
                     <p className="font-medium">Ask me anything</p>
                     <p className="text-[10px] text-hairline mt-1">I can see your code and execution output</p>
+                    <p className="text-[10px] text-hairline mt-1">Try "Generate" to write code from a description</p>
                   </div>
                 )}
                 {aiMessages.map((msg, i) => (
@@ -1255,12 +1329,12 @@ const EditorPage = () => {
                     type="text"
                     value={aiInput}
                     onChange={(e) => setAiInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { setAiAction('chat'); sendAIMessage('chat'); } }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { const act = aiAction || 'chat'; sendAIMessage(act); } }}
                     placeholder="Ask about your code..."
                     className="flex-1 px-2.5 py-1.5 bg-[var(--color-surface-card)] border border-[var(--color-hairline)] rounded-md text-xs text-[var(--color-ink)] placeholder-[var(--color-hairline)] focus:outline-none focus:border-[#7c3aed] transition-all"
                   />
                   <button
-                    onClick={() => { setAiAction('chat'); sendAIMessage('chat'); }}
+                    onClick={() => { const act = aiAction || 'chat'; sendAIMessage(act); }}
                     disabled={aiLoading || !aiInput.trim()}
                     className="px-2.5 py-1.5 bg-[#7c3aed] hover:bg-[#6d28d9] text-white rounded-md transition-all disabled:opacity-50"
                   >

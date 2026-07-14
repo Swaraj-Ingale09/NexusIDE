@@ -354,8 +354,16 @@ class AIAssistantView(APIView):
                     result = {'success': True, 'provider': ai._get_last_provider_used()}
                 else:
                     result = {'success': False}
+            elif action == 'generate':
+                # Generate code from natural language prompt
+                gen_result = ai.generate_code(context or code, language=language)
+                if gen_result and gen_result.get('success'):
+                    response_text = gen_result.get('generated_code', '')
+                    result = gen_result
+                else:
+                    result = {'success': False}
             else:
-                response_text = f"Unknown action: {action}. Available: explain, fix, optimize, debug, format, test, chat"
+                response_text = f"Unknown action: {action}. Available: explain, fix, optimize, debug, format, test, chat, generate"
                 result = {'success': False, 'provider': 'unknown'}
 
             # If provider failed, use fallback
@@ -366,16 +374,23 @@ class AIAssistantView(APIView):
                     'optimize': FallbackResponses.optimize_fallback(code),
                     'debug': FallbackResponses.fix_fallback(code, error or output),
                     'chat': FallbackResponses.explain_fallback(code),
+                    'generate': '',
                 }
                 response_text = fallback_map.get(action, 'AI service unavailable')
                 provider = 'fallback'
             else:
                 provider = result.get('provider', 'unknown') if result else 'local'
 
+            extracted = _extract_code_from_ai_response(response_text, language)
+
+            # For generate action, if extraction failed, use the raw response as code
+            if action == 'generate' and not extracted and response_text:
+                extracted = response_text.strip()
+
             return Response({
                 'response': response_text,
                 'provider': provider,
-                'extracted_code': _extract_code_from_ai_response(response_text, language),
+                'extracted_code': extracted,
                 'action': action,
             }, status=status.HTTP_200_OK)
 
@@ -389,6 +404,7 @@ class AIAssistantView(APIView):
                 'format': code,
                 'test': '# Could not generate tests',
                 'chat': FallbackResponses.explain_fallback(code),
+                'generate': '# Could not generate code. Please try again.',
             }
             fallback_text = fallback_map.get(action, 'AI service unavailable. Please try again.')
             return Response({
@@ -815,4 +831,24 @@ class GroqPoolStatusView(APIView):
             'total_rpd_capacity': pool.get_total_rpd_capacity(),
             'keys': pool.get_stats(),
         }, status=status.HTTP_200_OK)
+
+
+class SQLSchemaView(APIView):
+    """Return the current live schema of the in-memory SQL database."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from apps.compiler.executor import SQLExecutor
+        schema = SQLExecutor.get_schema()
+        return Response({'tables': schema}, status=status.HTTP_200_OK)
+
+
+class SQLResetView(APIView):
+    """Reset the in-memory SQL database — drop all user tables and re-seed."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from apps.compiler.executor import SQLExecutor
+        SQLExecutor.reset()
+        return Response({'status': 'ok', 'message': 'Database reset to default tables'}, status=status.HTTP_200_OK)
 

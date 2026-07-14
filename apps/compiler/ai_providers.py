@@ -123,9 +123,11 @@ class GroqAI:
             {"role": "user", "content": user}
         ], max_tokens=2048, temperature=0.3)
     
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, language: str = 'python') -> str:
+        lang = language.lower().strip()
+        lang_name = {'python': 'Python', 'c': 'C', 'cpp': 'C++', 'c++': 'C++', 'sql': 'SQL'}.get(lang, lang)
         return self._call([
-            {"role": "system", "content": "You are an expert programmer. Generate clean, efficient code."},
+            {"role": "system", "content": f"You are an expert {lang_name} programmer. Generate clean, efficient, well-commented {lang_name} code. Return ONLY the code in a ```{lang}``` code block — no explanation outside the block."},
             {"role": "user", "content": prompt}
         ], max_tokens=2048, temperature=0.5)
     
@@ -911,7 +913,7 @@ class MultiProviderAI:
                 elif action == 'optimize':
                     return provider.optimize(code, extra, language=language)
                 elif action == 'generate':
-                    return provider.generate(code)
+                    return provider.generate(code, language=language)
                 elif action == 'review':
                     return provider.review(code)
                 elif action == 'suggest':

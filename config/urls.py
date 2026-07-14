@@ -14,8 +14,9 @@ from apps.users.views import UserViewSet, AuthViewSet, UserProfileView, UserStat
 from apps.compiler.views import (
     CodeSnippetViewSet, ExecutionHistoryViewSet, ExecuteCodeView, AIAssistantView,
     TerminalExecutionViewSet, TerminalExecuteView, TerminalStreamingView,
-    ASTAnalysisView, CodeMetricsView, GroqPoolStatusView
+    ASTAnalysisView, CodeMetricsView, GroqPoolStatusView, SQLSchemaView, SQLResetView
 )
+from apps.compiler.sql_ai import SQLAIView
 from apps.compiler import language_detection_api
 from apps.projects.views import ProjectViewSet, ProjectFileViewSet
 from apps.community.views import CommunityFeedViewSet
@@ -101,9 +102,12 @@ urlpatterns = [
     path('api/auth/token/', TokenObtainPairView.as_view(), name='token-obtain-pair'),
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     path('api/execute/', ExecuteCodeView.as_view(), name='execute-code'),
+    path('api/sql/schema/', SQLSchemaView.as_view(), name='sql-schema'),
+    path('api/sql/reset/', SQLResetView.as_view(), name='sql-reset'),
     path('api/compiler/terminal/execute/', TerminalExecuteView.as_view(), name='terminal-execute'),
     path('api/compiler/terminal/stream/', TerminalStreamingView.as_view(), name='terminal-stream'),
     path('api/ai/', AIAssistantView.as_view(), name='ai-assist'),
+    path('api/sql-ai/', SQLAIView.as_view(), name='sql-ai'),
     path('api/ai/pool-status/', GroqPoolStatusView.as_view(), name='groq-pool-status'),
     path('api/ai/v2/', include('apps.compiler.ai_urls')),
     path('api/suggestions/', include('apps.compiler.suggestions_urls')),

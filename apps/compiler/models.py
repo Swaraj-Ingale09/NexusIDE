@@ -9,6 +9,7 @@ class CodeSnippet(models.Model):
         ('python', 'Python'),
         ('c', 'C'),
         ('cpp', 'C++'),
+        ('sql', 'SQL'),
     ]
     
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='code_snippets')
@@ -210,7 +211,7 @@ class TerminalExecution(models.Model):
     
     # Code and language
     code = models.TextField()
-    language = models.CharField(max_length=20, choices=[('python', 'Python'), ('c', 'C'), ('cpp', 'C++')], default='python')
+    language = models.CharField(max_length=20, choices=[('python', 'Python'), ('c', 'C'), ('cpp', 'C++'), ('sql', 'SQL')], default='python')
     
     # Execution status
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='running')

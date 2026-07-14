@@ -1,7 +1,7 @@
 """
-NexusIDE Code Executor — handles Python, C, and C++ execution.
+NexusIDE Code Executor — handles Python, C, C++, and SQL execution.
 Supports complex code with all libraries, proper stdin, large output,
-linked libraries for C/C++, and robust resource management.
+linked libraries for C/C++, and in-memory SQLite for SQL.
 """
 
 import subprocess
@@ -17,6 +17,7 @@ import re
 import threading
 import base64
 import glob as _glob
+import sqlite3
 
 logger = logging.getLogger(__name__)
 
@@ -854,12 +855,213 @@ class CPPExecutor:
 
 
 # ══════════════════════════════════════════════════════════════════════
+# SQL Executor
+# ══════════════════════════════════════════════════════════════════════
+
+class SQLExecutor:
+    """Execute SQL queries against a persistent in-memory SQLite database.
+    
+    The database persists across executions within the same process, so
+    CREATE TABLE, INSERT, UPDATE etc. carry over between runs.
+    """
+
+    _conn = None  # class-level persistent connection
+    _seeded = False
+
+    def __init__(self, timeout=5):
+        self.timeout = timeout
+
+    @classmethod
+    def _get_conn(cls):
+        if cls._conn is None:
+            cls._conn = sqlite3.connect(':memory:', check_same_thread=False)
+            cls._conn.row_factory = sqlite3.Row
+            cls._conn.execute("PRAGMA journal_mode=WAL")
+        return cls._conn
+
+    @classmethod
+    def reset(cls):
+        """Drop all tables and re-seed the database."""
+        if cls._conn:
+            cls._conn.close()
+            cls._conn = None
+        cls._seeded = False
+
+    def execute(self, code, stdin=''):
+        start_time = time.time()
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        try:
+            if not SQLExecutor._seeded:
+                self._seed(cursor)
+                conn.commit()
+                SQLExecutor._seeded = True
+
+            statements = [s.strip() for s in code.split(';') if s.strip()]
+            last_select_result = None
+            rows_affected = 0
+
+            for statement in statements:
+                cursor.execute(statement)
+                if cursor.description:
+                    columns = [col[0] for col in cursor.description]
+                    rows = [list(row) for row in cursor.fetchall()]
+                    last_select_result = {
+                        "type": "table",
+                        "columns": columns,
+                        "rows": rows,
+                        "affected_rows": len(rows)
+                    }
+                else:
+                    rows_affected += cursor.rowcount if cursor.rowcount != -1 else 0
+
+            conn.commit()
+            execution_time = time.time() - start_time
+
+            if last_select_result:
+                output_str = json.dumps(last_select_result)
+            else:
+                code_upper = code.upper().strip()
+                is_ddl = code_upper.startswith(('CREATE ', 'ALTER ', 'DROP '))
+                verb = 'created' if code_upper.startswith('CREATE ') else 'altered' if code_upper.startswith('ALTER ') else 'dropped' if code_upper.startswith('DROP ') else 'executed'
+                if is_ddl:
+                    msg = f"Query executed successfully. {verb.title()} successfully."
+                else:
+                    msg = f"Query executed successfully. {rows_affected} row{'s' if rows_affected != 1 else ''} affected."
+                output_str = json.dumps({
+                    "type": "message",
+                    "message": msg,
+                })
+
+            return {
+                'output': output_str,
+                'error': '',
+                'status': 'success',
+                'execution_time': execution_time,
+                'return_code': 0,
+                'artifacts': [],
+            }
+        except sqlite3.Error as e:
+            return {
+                'output': '',
+                'error': f"SQL Error: {str(e)}",
+                'status': 'error',
+                'execution_time': time.time() - start_time,
+                'return_code': 1,
+                'artifacts': [],
+            }
+
+    @classmethod
+    def get_schema(cls):
+        """Return current database schema as a dict of table info."""
+        conn = cls._get_conn()
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+        tables = {}
+        for (table_name,) in cursor.fetchall():
+            cursor.execute(f"PRAGMA table_info({table_name})")
+            columns = []
+            for col in cursor.fetchall():
+                columns.append({
+                    'name': col[1],
+                    'type': col[2],
+                    'not_null': bool(col[3]),
+                    'default': col[4],
+                    'pk': bool(col[5]),
+                })
+            cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+            row_count = cursor.fetchone()[0]
+            tables[table_name] = {
+                'columns': columns,
+                'row_count': row_count,
+            }
+        return tables
+
+    def _seed(self, cursor):
+        cursor.execute('''
+            CREATE TABLE Customers (
+                CustomerID INTEGER PRIMARY KEY AUTOINCREMENT,
+                CustomerName TEXT,
+                ContactName TEXT,
+                City TEXT,
+                Country TEXT
+            )
+        ''')
+        cursor.executemany('''
+            INSERT INTO Customers (CustomerName, ContactName, City, Country)
+            VALUES (?, ?, ?, ?)
+        ''', [
+            ('Alfreds Futterkiste', 'Maria Anders', 'Berlin', 'Germany'),
+            ('Ana Trujillo Emparedados', 'Ana Trujillo', 'México D.F.', 'Mexico'),
+            ('Antonio Moreno Taquería', 'Antonio Moreno', 'México D.F.', 'Mexico'),
+            ('Around the Horn', 'Thomas Hardy', 'London', 'UK'),
+            ('Berglunds snabbköp', 'Christina Berglund', 'Luleå', 'Sweden'),
+            ('Blauer See Delikatessen', 'Hanna Moos', 'Mannheim', 'Germany'),
+            ('Blondel père et fils', 'Frédérique Citeaux', 'Strasbourg', 'France'),
+            ('Bólido Comidas preparadas', 'Martín Sommer', 'Madrid', 'Spain'),
+            ('Bon app\'', 'Laurence Lebihan', 'Marseille', 'France'),
+            ('Bottom-Dollar Markets', 'Elizabeth Lincoln', 'Tsawwassen', 'Canada'),
+        ])
+
+        cursor.execute('''
+            CREATE TABLE Products (
+                ProductID INTEGER PRIMARY KEY AUTOINCREMENT,
+                ProductName TEXT,
+                Price REAL,
+                Unit TEXT
+            )
+        ''')
+        cursor.executemany('''
+            INSERT INTO Products (ProductName, Price, Unit)
+            VALUES (?, ?, ?)
+        ''', [
+            ('Chais', 18.00, '10 boxes x 20 bags'),
+            ('Chang', 19.00, '24 - 12 oz bottles'),
+            ('Aniseed Syrup', 10.00, '12 - 550 ml bottles'),
+            ('Chef Anton\'s Cajun Seasoning', 22.00, '48 - 6 oz jars'),
+            ('Chef Anton\'s Gumbo Mix', 21.35, '36 boxes'),
+            ('Grandma\'s Boysenberry Spread', 25.00, '12 - 8 oz jars'),
+            ('Uncle Bob\'s Organic Dried Pears', 30.00, '12 - 1 lb pkgs.'),
+            ('Northwoods Cranberry Sauce', 40.00, '12 - 12 oz jars'),
+            ('Mishi Kobe Niku', 97.00, '50 - 300 g pkgs.'),
+            ('Ikura', 31.00, '12 - 200 ml jars'),
+        ])
+
+        cursor.execute('''
+            CREATE TABLE Orders (
+                OrderID INTEGER PRIMARY KEY AUTOINCREMENT,
+                CustomerID INTEGER,
+                ProductID INTEGER,
+                Quantity INTEGER,
+                OrderDate TEXT,
+                FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID),
+                FOREIGN KEY (ProductID) REFERENCES Products(ProductID)
+            )
+        ''')
+        cursor.executemany('''
+            INSERT INTO Orders (CustomerID, ProductID, Quantity, OrderDate)
+            VALUES (?, ?, ?, ?)
+        ''', [
+            (1, 1, 10, '2024-01-15'),
+            (1, 3, 5, '2024-02-10'),
+            (2, 2, 3, '2024-01-20'),
+            (3, 5, 1, '2024-03-05'),
+            (4, 7, 12, '2024-02-28'),
+            (5, 1, 8, '2024-01-22'),
+            (6, 4, 6, '2024-03-15'),
+            (7, 9, 2, '2024-02-14'),
+            (8, 10, 4, '2024-03-01'),
+            (9, 6, 3, '2024-01-30'),
+        ])
+
+
+# ══════════════════════════════════════════════════════════════════════
 # Router
 # ══════════════════════════════════════════════════════════════════════
 
 def execute_code(code, language='python', stdin='', timeout=None):
     """
-    Execute code in Python, C, or C++.
+    Execute code in Python, C, C++, or SQL.
     Returns: dict with output, error, status, execution_time, return_code, artifacts
     """
     language = language.lower().strip()
@@ -873,10 +1075,13 @@ def execute_code(code, language='python', stdin='', timeout=None):
     elif language in ['cpp', 'c++']:
         return CPPExecutor(timeout).execute(code, stdin)
 
+    elif language == 'sql':
+        return SQLExecutor(timeout).execute(code, stdin)
+
     else:
         return {
             'output': '',
-            'error': f'Unsupported language: {language}. Supported: python, c, cpp',
+            'error': f'Unsupported language: {language}. Supported: python, c, cpp, sql',
             'status': 'error',
             'execution_time': 0,
             'return_code': -1,

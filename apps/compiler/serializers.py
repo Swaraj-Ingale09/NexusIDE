@@ -40,14 +40,14 @@ class ExecutionHistorySerializer(serializers.ModelSerializer):
 class CodeExecutionSerializer(serializers.Serializer):
     code = serializers.CharField()
     stdin = serializers.CharField(required=False, allow_blank=True)
-    language = serializers.ChoiceField(choices=['python', 'c', 'cpp'], required=False, default='python')
+    language = serializers.ChoiceField(choices=['python', 'c', 'cpp', 'sql'], required=False, default='python')
     snippet_id = serializers.IntegerField(required=False)
 
 
 class AIAssistantSerializer(serializers.Serializer):
     code = serializers.CharField()
-    action = serializers.ChoiceField(choices=['explain', 'fix', 'optimize', 'debug', 'chat', 'format', 'test'])
-    language = serializers.ChoiceField(choices=['python', 'c', 'cpp'], required=False, default='python')
+    action = serializers.ChoiceField(choices=['explain', 'fix', 'optimize', 'debug', 'chat', 'format', 'test', 'generate'])
+    language = serializers.ChoiceField(choices=['python', 'c', 'cpp', 'sql'], required=False, default='python')
     error = serializers.CharField(required=False, allow_blank=True)
     context = serializers.CharField(required=False, allow_blank=True)
     output = serializers.CharField(required=False, allow_blank=True)
@@ -108,7 +108,7 @@ class TerminalExecutionCreateSerializer(serializers.Serializer):
     """Serializer for creating a new terminal execution."""
     
     code = serializers.CharField()
-    language = serializers.ChoiceField(choices=['python', 'c', 'cpp'], default='python')
+    language = serializers.ChoiceField(choices=['python', 'c', 'cpp', 'sql'], default='python')
     snippet_id = serializers.IntegerField(required=False, allow_null=True)
     input_lines = serializers.ListField(
         child=serializers.CharField(),
