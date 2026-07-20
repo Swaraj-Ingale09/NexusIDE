@@ -1092,3 +1092,160 @@ def execute_code(code, language='python', stdin='', timeout=None):
 def execute_python_code(code, timeout=None):
     """Backward compatible wrapper for Python execution."""
     return execute_code(code, 'python', timeout=timeout)
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Visual Execution Tracer (step-by-step debugger)
+# ══════════════════════════════════════════════════════════════════════
+
+import linecache as _linecache
+import io as _io
+
+
+class TracedPythonExecutor:
+    """
+    Execute Python code with sys.settrace to capture a step-by-step
+    execution trace: line number, local/global variables, call stack, stdout.
+    
+    Returns a list of trace entries:
+    [
+      { "line": 1, "stack": ["main"], "variables": {"x": 5}, "stdout": "" },
+      ...
+    ]
+    """
+
+    MAX_STEPS = 500  # safety limit
+    MAX_VAR_LEN = 200  # truncate large values
+
+    def __init__(self, timeout=10):
+        self.timeout = timeout
+
+    def execute(self, code: str) -> dict:
+        start_time = time.time()
+        trace = []
+        stdout_capture = _io.StringIO()
+        _linecache.cache[ '<trace>'] = (len(code), None, code.splitlines(True), '<trace>')
+
+        # Collect all local variables visible at each line
+        def _safe_repr(val):
+            try:
+                s = repr(val)
+                return s[:self.MAX_VAR_LEN] + '...' if len(s) > self.MAX_VAR_LEN else s
+            except Exception:
+                return '<unrepresentable>'
+
+        def _build_variables(frame):
+            """Extract meaningful variables from a frame."""
+            vars_dict = {}
+            # Local variables
+            for k, v in frame.f_locals.items():
+                if k.startswith('_'):
+                    continue
+                vars_dict[k] = _safe_repr(v)
+            # Global variables (only user-defined, skip modules)
+            for k, v in frame.f_globals.items():
+                if k.startswith('_') or k in ('__builtins__', '__name__',
+                    '__doc__', '__spec__', '__loader__', '__package__',
+                    '__spec__', '__file__', '__cached__'):
+                    continue
+                if callable(v) or hasattr(v, '__module__'):
+                    continue
+                vars_dict[k] = _safe_repr(v)
+            return vars_dict
+
+        def _build_stack(frame):
+            """Build call stack list from frame chain."""
+            stack = []
+            f = frame
+            while f:
+                name = f.f_code.co_name
+                if name == '<module>':
+                    name = 'main'
+                stack.append(name)
+                f = f.f_back
+            stack.reverse()
+            return stack
+
+        def trace_handler(frame, event, arg):
+            if len(trace) >= self.MAX_STEPS:
+                return None  # stop tracing
+
+            if event == 'line':
+                line_no = frame.f_lineno
+                # Only trace lines in <trace> (our code), skip imported modules
+                if frame.f_code.co_filename == '<trace>':
+                    trace.append({
+                        'line': line_no,
+                        'stack': _build_stack(frame),
+                        'variables': _build_variables(frame),
+                        'stdout': '',  # filled at end of step
+                    })
+
+            elif event == 'call':
+                # Trace into user function calls
+                if frame.f_code.co_filename == '<trace>':
+                    pass  # will be captured on next 'line' event
+
+            elif event == 'return':
+                if frame.f_code.co_filename == '<trace>':
+                    line_no = frame.f_lineno
+                    retval = _safe_repr(arg) if arg is not None else None
+                    # Add a return entry
+                    trace.append({
+                        'line': line_no,
+                        'stack': _build_stack(frame),
+                        'variables': {**_build_variables(frame), **({'→ return': retval} if retval else {})},
+                        'stdout': '',
+                    })
+
+            return trace_handler
+
+        try:
+            compiled = compile(code, '<trace>', 'exec')
+
+            # Redirect stdout
+            old_stdout = sys.stdout
+            sys.stdout = stdout_capture
+
+            sys.settrace(trace_handler)
+            exec(compiled, {'__builtins__': __builtins__, '__name__': '__main__'})
+            sys.settrace(None)
+
+            sys.stdout = old_stdout
+
+            # Post-process: attach captured stdout to the last entry
+            captured = stdout_capture.getvalue()
+            if trace and captured:
+                trace[-1]['stdout'] = captured
+
+            execution_time = time.time() - start_time
+
+            return {
+                'trace': trace,
+                'stdout': captured,
+                'total_steps': len(trace),
+                'execution_time': execution_time,
+                'error': '',
+            }
+
+        except Exception as e:
+            sys.settrace(None)
+            sys.stdout = old_stdout if 'old_stdout' in dir() else sys.stdout
+            execution_time = time.time() - start_time
+
+            # Add error entry to trace
+            error_line = getattr(e, 'tb_lineno', 1)
+            trace.append({
+                'line': error_line,
+                'stack': ['main'],
+                'variables': {'__error__': str(e)},
+                'stdout': '',
+            })
+
+            return {
+                'trace': trace,
+                'stdout': stdout_capture.getvalue(),
+                'total_steps': len(trace),
+                'execution_time': execution_time,
+                'error': str(e),
+            }

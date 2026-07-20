@@ -274,10 +274,135 @@ class ExecuteCodeView(APIView):
         return Response(response_data, status=status.HTTP_201_CREATED)
 
 
+# ─── Workspace-Aware AI Context Builder ────────────────────────────────
+
+# Patterns that indicate local/project imports (not stdlib or pip packages)
+_LOCAL_IMPORT_RE = __import__('re').compile(
+    r'(?:^|\n)\s*(?:'
+    r'import\s+([a-zA-Z_][\w.]*)'        # import utils / import utils.helpers
+    r'|from\s+([a-zA-Z_][\w.]*)\s+import' # from utils import foo
+    r')'
+)
+
+# Skip these — they're stdlib or third-party, never project files
+_STDLIB_MODULES = {
+    'os', 'sys', 're', 'json', 'math', 'time', 'datetime', 'collections',
+    'itertools', 'functools', 'operator', 'string', 'io', 'pathlib',
+    'subprocess', 'threading', 'multiprocessing', 'socket', 'http',
+    'urllib', 'email', 'html', 'xml', 'csv', 'sqlite3', 'logging',
+    'unittest', 'typing', 'abc', 'copy', 'pprint', 'textwrap',
+    'hashlib', 'hmac', 'secrets', 'uuid', 'base64', 'binascii',
+    'struct', 'codecs', 'locale', 'gettext', 'argparse', 'getopt',
+    'shutil', 'glob', 'fnmatch', 'tempfile', 'gzip', 'zipfile',
+    'tarfile', 'configparser', 'crets', 'platform', 'signal',
+    'ctypes', 'warnings', 'contextlib', 'decimal', 'fractions',
+    'random', 'statistics', 'dataclasses', 'enum', 'graphlib',
+    'heapq', 'bisect', 'array', 'weakref', 'types', 'traceback',
+    'inspect', 'dis', 'token', 'tokenize', 'ast', 'symtable',
+    'keyword', 'linecache', 'pickle', 'shelve', 'marshal',
+    'dbm', 'sqlite3', 'zlib', 'bz2', 'lzma', 'tarfile',
+    'csv', 'configparser', 'netrc', 'plistlib', 'xdrlib',
+    'difflib', 'textwrap', 'unicodedata', 'stringprep',
+    # common project-level names to avoid false positives
+    'main', 'app', 'settings', 'manage',
+}
+
+
+def _build_workspace_context(code: str, project_id: int, file_id: int, user) -> str:
+    """
+    Build a multi-file workspace context for the AI assistant.
+
+    Scans the active file's code for local imports, fetches matching
+    project files from the database, and returns a structured prompt
+    prefix like:
+
+        Project Directory Tree:
+        - main.py
+        - utils.py
+
+        --- File: utils.py ---
+        [source code]
+
+        --- Active File: main.py ---
+        [source code]
+    """
+    import re as _re
+    from apps.projects.models import Project, ProjectFile
+
+    try:
+        project = Project.objects.get(id=project_id, user=user)
+    except Project.DoesNotExist:
+        return ''
+
+    # Get all files in the project
+    all_files = list(project.files.values('id', 'name', 'content', 'is_main'))
+    if not all_files:
+        return ''
+
+    # Build a name→file lookup (strip directory prefixes for matching)
+    file_lookup = {}
+    for f in all_files:
+        # "utils/helpers.py" → "utils.helpers", "utils.py" → "utils"
+        basename = f['name']
+        # Strip trailing extension for import matching
+        module_name = _re.sub(r'\.(py|c|cpp|cc|js|ts)$', '', basename)
+        file_lookup[module_name] = f
+        # Also store just the filename without path
+        short_name = basename.rsplit('/', 1)[-1] if '/' in basename else basename
+        file_lookup[_re.sub(r'\.(py|c|cpp|cc|js|ts)$', '', short_name)] = f
+
+    # Scan code for local imports
+    imported_modules = set()
+    for match in _LOCAL_IMPORT_RE.finditer(code):
+        module = (match.group(1) or match.group(2) or '').strip()
+        if not module:
+            continue
+        # Take the root module: "utils.helpers" → "utils"
+        root = module.split('.')[0]
+        if root and root.lower() not in _STDLIB_MODULES:
+            imported_modules.add(root)
+
+    if not imported_modules:
+        # No local imports found — just provide the directory tree
+        tree_lines = [f"- {f['name']}" for f in all_files]
+        active_name = next((f['name'] for f in all_files if f['id'] == file_id), all_files[0]['name'])
+        return (
+            f"Project Directory Tree:\n" + '\n'.join(tree_lines) + '\n\n'
+            f"--- Active File: {active_name} ---\n{code}\n"
+        )
+
+    # Fetch imported file contents
+    imported_files = []
+    for module_name in imported_modules:
+        if module_name in file_lookup:
+            f = file_lookup[module_name]
+            # Don't include the active file itself
+            if f['id'] != file_id:
+                imported_files.append(f)
+
+    # Build the context string
+    parts = []
+
+    # Directory tree
+    tree_lines = [f"- {f['name']}" for f in all_files]
+    parts.append("Project Directory Tree:\n" + '\n'.join(tree_lines))
+
+    # Imported file contents
+    for f in imported_files:
+        parts.append(f"--- File: {f['name']} ---\n{f['content']}")
+
+    # Active file last
+    active_name = next((f['name'] for f in all_files if f['id'] == file_id), 'active_file')
+    parts.append(f"--- Active File: {active_name} ---\n{code}")
+
+    return '\n\n'.join(parts)
+
+
 class AIAssistantView(APIView):
     """
     AI Assistant endpoint — explain, fix, optimize, debug, format, test, chat.
     Reads code, output, and errors from the editor for context-aware responses.
+    Supports workspace-aware context when project_id is provided.
     """
     permission_classes = [IsAuthenticated]
 
@@ -295,6 +420,8 @@ class AIAssistantView(APIView):
         error = serializer.validated_data.get('error', '')
         context = serializer.validated_data.get('context', '')
         output = serializer.validated_data.get('output', '')
+        project_id = serializer.validated_data.get('project_id')
+        file_id = serializer.validated_data.get('file_id')
 
         # Per-feature rate limit: 3 uses per feature per hour
         identifier = get_client_identifier(request)
@@ -310,8 +437,17 @@ class AIAssistantView(APIView):
                 'feature': action,
             }, status=status.HTTP_429_TOO_MANY_REQUESTS)
 
+        # Build workspace-aware context if project_id provided
+        workspace_context = ''
+        if project_id and file_id:
+            workspace_context = _build_workspace_context(
+                code, project_id, file_id, request.user
+            )
+
         # Build context string from output/error so AI understands the full picture
         extra_context = ''
+        if workspace_context:
+            extra_context += f"\n\n{workspace_context}"
         if error:
             extra_context += f"\n\nExecution Error:\n{error}"
         if output:
@@ -851,4 +987,203 @@ class SQLResetView(APIView):
         from apps.compiler.executor import SQLExecutor
         SQLExecutor.reset()
         return Response({'status': 'ok', 'message': 'Database reset to default tables'}, status=status.HTTP_200_OK)
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Pre-emptive Background Diagnostics
+# ══════════════════════════════════════════════════════════════════════
+
+import ast as _ast
+import subprocess as _subprocess
+import sys as _sys
+import os as _os
+import tempfile as _tempfile
+
+
+def _diagnose_python(code: str) -> list:
+    """Run ast.parse() to detect syntax errors. Returns list of error dicts."""
+    errors = []
+    try:
+        _ast.parse(code)
+    except SyntaxError as e:
+        errors.append({
+            'line': e.lineno or 1,
+            'column': e.offset or 0,
+            'message': str(e.msg),
+            'fix': '',
+            'explanation': '',
+        })
+    return errors
+
+
+def _diagnose_c_cpp(code: str, language: str) -> list:
+    """Do a quick compilation dry-run (syntax only) for C/C++."""
+    errors = []
+    suffix = '.c' if language == 'c' else '.cpp'
+    work_dir = _os.environ.get('TEMP', _os.environ.get('TMP', _tempfile.gettempdir()))
+    src_path = None
+    try:
+        fd, src_path = _tempfile.mkstemp(suffix=suffix, dir=work_dir)
+        _os.close(fd)
+        with open(src_path, 'w', encoding='utf-8', errors='replace') as f:
+            f.write(code)
+
+        compiler = 'gcc' if language == 'c' else 'g++'
+        flags = ['-fsyntax-only', '-Wall', '-Wextra']
+        if language == 'cpp':
+            flags.append('-std=c++17')
+
+        creationflags = 0
+        if _sys.platform == 'win32':
+            creationflags = _subprocess.CREATE_NO_WINDOW
+
+        result = _subprocess.run(
+            [compiler] + flags + [src_path],
+            capture_output=True, text=True, timeout=10,
+            encoding='utf-8', errors='replace',
+            creationflags=creationflags,
+        )
+
+        if result.returncode != 0 and result.stderr:
+            for line in result.stderr.strip().splitlines():
+                # Parse "file.c:12:5: error: message" format
+                parts = line.split(':', 3)
+                if len(parts) >= 4:
+                    try:
+                        ln = int(parts[1].strip())
+                        col = int(parts[2].strip())
+                        msg = parts[3].strip().lstrip('- ')
+                        errors.append({
+                            'line': ln,
+                            'column': col,
+                            'message': msg,
+                            'fix': '',
+                            'explanation': '',
+                        })
+                    except (ValueError, IndexError):
+                        pass
+    except _subprocess.TimeoutExpired:
+        pass
+    except Exception:
+        pass
+    finally:
+        if src_path and _os.path.exists(src_path):
+            try:
+                _os.remove(src_path)
+            except Exception:
+                pass
+    return errors
+
+
+def _ai_fix_suggestion(code: str, error: dict, language: str) -> dict:
+    """Call AI for a fast fix suggestion for a single error."""
+    try:
+        from apps.compiler.ai_providers import get_multi_provider_ai
+        ai = get_multi_provider_ai()
+
+        line_num = error['line']
+        lines = code.split('\n')
+        error_line = lines[line_num - 1] if line_num <= len(lines) else ''
+
+        prompt = (
+            f"A {language} line has a syntax error.\n"
+            f"Error line {line_num}: {error_line}\n"
+            f"Error: {error['message']}\n\n"
+            f"Return ONLY the corrected single line of code, nothing else."
+        )
+
+        result = ai._call_provider('explain', prompt)
+        if result:
+            # Extract just the code line from the response
+            fixed = result.strip().strip('`').strip()
+            # Remove markdown code fences if present
+            if fixed.startswith(('python', 'c', 'cpp', 'c++')):
+                fixed = fixed.split('\n', 1)[-1]
+            if fixed.endswith('```'):
+                fixed = fixed[:-3]
+            fixed = fixed.strip()
+            # Take only the first non-empty line
+            for l in fixed.split('\n'):
+                if l.strip():
+                    fixed = l.strip()
+                    break
+            error['fix'] = fixed
+            error['explanation'] = result.strip()[:200]
+    except Exception:
+        pass
+    return error
+
+
+class CodeDiagnoseView(APIView):
+    """
+    Lightweight background diagnostics endpoint.
+    POST /api/compiler/diagnose/
+    Body: { code, language }
+    Returns: { errors: [{ line, column, message, fix, explanation }] }
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        code = request.data.get('code', '')
+        language = request.data.get('language', 'python')
+
+        if not code or not code.strip():
+            return Response({'errors': []}, status=status.HTTP_200_OK)
+
+        # Skip diagnostics for very large files (>50KB)
+        if len(code) > 50000:
+            return Response({'errors': []}, status=status.HTTP_200_OK)
+
+        language = language.lower().strip()
+
+        # Step 1: Run syntax diagnostics
+        if language == 'python':
+            errors = _diagnose_python(code)
+        elif language in ('c', 'cpp', 'c++'):
+            lang = 'c' if language == 'c' else 'cpp'
+            errors = _diagnose_c_cpp(code, lang)
+        else:
+            return Response({'errors': []}, status=status.HTTP_200_OK)
+
+        # Step 2: Get AI fix suggestions for each error (max 3 to stay fast)
+        for error in errors[:3]:
+            _ai_fix_suggestion(code, error, language)
+
+        return Response({'errors': errors}, status=status.HTTP_200_OK)
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Visual Execution Tracer
+# ══════════════════════════════════════════════════════════════════════
+
+class CodeTraceView(APIView):
+    """
+    POST /api/compiler/trace/
+    Body: { code, language }
+    Returns: { trace: [...], stdout, total_steps, execution_time, error }
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        code = request.data.get('code', '')
+        language = request.data.get('language', 'python')
+
+        if not code or not code.strip():
+            return Response({
+                'trace': [], 'stdout': '', 'total_steps': 0,
+                'execution_time': 0, 'error': 'No code provided',
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        language = language.lower().strip()
+        if language != 'python':
+            return Response({
+                'trace': [], 'stdout': '', 'total_steps': 0,
+                'execution_time': 0, 'error': 'Tracing is only supported for Python',
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        from apps.compiler.executor import TracedPythonExecutor
+        executor = TracedPythonExecutor(timeout=10)
+        result = executor.execute(code)
+
+        return Response(result, status=status.HTTP_200_OK)
 

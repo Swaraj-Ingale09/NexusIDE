@@ -50,7 +50,7 @@ class ProblemSubmissionSerializer(serializers.ModelSerializer):
         model = ProblemSubmission
         fields = (
             'id', 'user', 'user_name', 'problem', 'problem_title', 'code',
-            'status', 'passed_tests', 'total_tests', 'execution_time',
+            'language', 'status', 'passed_tests', 'total_tests', 'execution_time',
             'memory_used', 'error_message', 'submitted_at', 'judged_at'
         )
         read_only_fields = (

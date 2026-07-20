@@ -220,6 +220,14 @@ const EditorPage = () => {
   const [newFileName, setNewFileName] = useState('');
   const [showNamePrompt, setShowNamePrompt] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
+  // ─── Execution Trace state ───
+  const [traceData, setTraceData] = useState([]);
+  const [traceIndex, setTraceIndex] = useState(-1);
+  const [traceLoading, setTraceLoading] = useState(false);
+  const [tracePlaying, setTracePlaying] = useState(false);
+  const [traceStdout, setTraceStdout] = useState('');
+  const tracePlayRef = useRef(null);
+  const traceDecoRef = useRef(null);
   const timerRef = useRef(null);
   const abortRef = useRef(null);
   const autoSaveTimer = useRef(null);
@@ -233,8 +241,12 @@ const EditorPage = () => {
   const splitRef = useRef(null);
   const { registerProvider: registerAutocomplete } = useTabAutocomplete(language);
   const completionDisposableRef = useRef(null);
+  const cursorDisposableRef = useRef(null);
   const { send: sendAIStream, streaming: aiStreaming, streamedText: aiStreamedText, disconnect: disconnectAI } = useAIStreaming();
   const aiStreamedMsgRef = useRef(null);
+  const aiCooldownRef = useRef(false);
+  const diagnosticsRef = useRef([]);
+  const diagnosticsTimerRef = useRef(null);
 
   const switchLanguage = (lang) => {
     setLanguage(lang);
@@ -253,12 +265,52 @@ const EditorPage = () => {
     monaco.editor.setTheme(theme === 'dark' ? 'clay-dark' : 'clay-light');
     editor.focus();
 
-    editor.onDidChangeCursorPosition((e) => {
+    cursorDisposableRef.current = editor.onDidChangeCursorPosition((e) => {
       setCursorPos({ line: e.position.lineNumber, col: e.position.column });
     });
 
     // Register tab autocomplete provider
     completionDisposableRef.current = registerAutocomplete(editor, monaco);
+
+    // ─── AI Quick-Fix Hover Provider ───
+    monaco.languages.registerHoverProvider('*', {
+      provideHover(model, position) {
+        const error = diagnosticsRef.current.find(
+          e => e.line === position.lineNumber
+        );
+        if (!error || !error.fix) return null;
+
+        const fixLine = error.fix;
+        const explanation = error.explanation || error.message;
+
+        return {
+          range: new monaco.Range(
+            position.lineNumber, 1,
+            position.lineNumber, model.getLineMaxColumn(position.lineNumber)
+          ),
+          contents: [
+            { value: `**✨ AI Quick-Fix**` },
+            { value: `**Error:** ${error.message}\n\n**Suggested fix:**\n\`\`\`${language.id}\n${fixLine}\n\`\`\`\n\n${explanation}` },
+          ],
+        };
+      },
+    });
+
+    // ─── Quick-Fix Action (Ctrl+.) ───
+    editor.addAction({
+      id: 'ai-quick-fix',
+      label: 'Apply AI Quick-Fix',
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Period],
+      contextMenuGroupId: '1_modification',
+      contextMenuOrder: 1.5,
+      run: (ed) => {
+        const pos = ed.getPosition();
+        const error = diagnosticsRef.current.find(e => e.line === pos.lineNumber);
+        if (error && error.fix) {
+          applyQuickFix(error);
+        }
+      },
+    });
   };
 
   // Switch Monaco theme when app theme changes
@@ -279,7 +331,207 @@ const EditorPage = () => {
   const handleCodeChange = (val) => {
     setCode(val || '');
     updateCodeStats(val);
+    scheduleDiagnostics(val || '');
   };
+
+  // ─── Background Diagnostics ───
+  const runDiagnostics = async (codeToCheck) => {
+    if (!codeToCheck || codeToCheck.length < 5) return;
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch('/api/compiler/diagnose/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ code: codeToCheck, language: language.id }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const errors = data.errors || [];
+      diagnosticsRef.current = errors;
+      applyMonacoMarkers(errors);
+    } catch {
+      // silently ignore — diagnostics are non-critical
+    }
+  };
+
+  const scheduleDiagnostics = (codeToCheck) => {
+    if (diagnosticsTimerRef.current) clearTimeout(diagnosticsTimerRef.current);
+    diagnosticsTimerRef.current = setTimeout(() => runDiagnostics(codeToCheck), 800);
+  };
+
+  const applyMonacoMarkers = (errors) => {
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+    if (!editor || !monaco) return;
+
+    const model = editor.getModel();
+    if (!model) return;
+
+    const markers = errors.map((err) => ({
+      severity: monaco.MarkerSeverity.Error,
+      startLineNumber: err.line,
+      startColumn: err.column || 1,
+      endLineNumber: err.line,
+      endColumn: (err.column || 1) + Math.max((model.getLineContent(err.line) || '').length, 1),
+      message: err.fix
+        ? `${err.message} — AI Fix: ${err.fix}`
+        : err.message,
+    }));
+
+    monaco.editor.setModelMarkers(model, 'nexus-diagnostics', markers);
+  };
+
+  const applyQuickFix = (error) => {
+    if (!error || !error.fix || !editorRef.current) return;
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+    const model = editor.getModel();
+    if (!model) return;
+
+    const lineNum = error.line;
+    const lineContent = model.getLineContent(lineNum);
+    const fullLineRange = new monaco.Range(lineNum, 1, lineNum, lineContent.length + 1);
+
+    editor.executeEdits('ai-quick-fix', [{
+      range: fullLineRange,
+      text: error.fix,
+    }]);
+
+    // Clear this marker
+    diagnosticsRef.current = diagnosticsRef.current.filter(e => e !== error);
+    applyMonacoMarkers(diagnosticsRef.current);
+    setToast({ message: `AI fix applied: ${error.fix}`, type: 'success' });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  // ─── Execution Trace ───
+  const runTrace = async () => {
+    if (traceLoading || language.id !== 'python') return;
+    setTraceLoading(true);
+    setTraceData([]);
+    setTraceIndex(-1);
+    setTraceStdout('');
+    setOutputTab('trace');
+    stopTracePlay();
+
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch('/api/compiler/trace/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ code, language: language.id }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setTraceData(data.trace || []);
+      setTraceStdout(data.stdout || '');
+      if (data.trace && data.trace.length > 0) {
+        setTraceIndex(0);
+        highlightTraceLine(0, data.trace);
+      }
+      if (data.error) {
+        setToast({ message: `Trace error: ${data.error}`, type: 'error' });
+        setTimeout(() => setToast(null), 4000);
+      }
+    } catch (err) {
+      setToast({ message: `Trace failed: ${err.message}`, type: 'error' });
+      setTimeout(() => setToast(null), 4000);
+    } finally {
+      setTraceLoading(false);
+    }
+  };
+
+  const highlightTraceLine = (idx, data) => {
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+    if (!editor || !monaco || !data || idx < 0 || idx >= data.length) return;
+
+    const lineNum = data[idx].line;
+    const model = editor.getModel();
+    if (!model) return;
+
+    // Remove old decorations
+    if (traceDecoRef.current) {
+      editor.deltaDecorations(traceDecoRef.current, []);
+    }
+
+    // Add new highlight decoration
+    const newDecos = editor.deltaDecorations([], [
+      {
+        range: new monaco.Range(lineNum, 1, lineNum, model.getLineMaxColumn(lineNum)),
+        options: {
+          isWholeLine: true,
+          className: 'trace-line-highlight',
+          glyphMarginClassName: 'trace-line-glyph',
+          overviewRuler: { color: '#5cb8a0', position: monaco.editor.OverviewRulerLane.Left },
+        },
+      },
+    ]);
+    traceDecoRef.current = newDecos;
+
+    // Scroll to the line
+    editor.revealLineInCenter(lineNum);
+  };
+
+  const traceStepForward = () => {
+    if (traceIndex < traceData.length - 1) {
+      const next = traceIndex + 1;
+      setTraceIndex(next);
+      highlightTraceLine(next, traceData);
+    }
+  };
+
+  const traceStepBack = () => {
+    if (traceIndex > 0) {
+      const prev = traceIndex - 1;
+      setTraceIndex(prev);
+      highlightTraceLine(prev, traceData);
+    }
+  };
+
+  const startTracePlay = () => {
+    if (tracePlaying || traceData.length === 0) return;
+    setTracePlaying(true);
+    let idx = traceIndex;
+    tracePlayRef.current = setInterval(() => {
+      if (idx >= traceData.length - 1) {
+        clearInterval(tracePlayRef.current);
+        tracePlayRef.current = null;
+        setTracePlaying(false);
+        return;
+      }
+      idx++;
+      setTraceIndex(idx);
+      highlightTraceLine(idx, traceData);
+    }, 400);
+  };
+
+  const stopTracePlay = () => {
+    if (tracePlayRef.current) {
+      clearInterval(tracePlayRef.current);
+      tracePlayRef.current = null;
+    }
+    setTracePlaying(false);
+  };
+
+  const toggleTracePlay = () => {
+    if (tracePlaying) stopTracePlay();
+    else startTracePlay();
+  };
+
+  // Cleanup trace play interval on unmount
+  useEffect(() => {
+    return () => { if (tracePlayRef.current) clearInterval(tracePlayRef.current); };
+  }, []);
 
   const runCode = async () => {
     if (isRunning) return;
@@ -288,6 +540,14 @@ const EditorPage = () => {
     setArtifacts([]);
     setExecutionTime(null);
     setOutputTab('output');
+    // Clear trace decorations
+    if (traceDecoRef.current && editorRef.current) {
+      editorRef.current.deltaDecorations(traceDecoRef.current, []);
+      traceDecoRef.current = null;
+    }
+    stopTracePlay();
+    setTraceData([]);
+    setTraceIndex(-1);
     setTimerSeconds(0);
     const start = performance.now();
     timerRef.current = setInterval(() => {
@@ -432,33 +692,46 @@ const EditorPage = () => {
     navigator.clipboard.writeText(code);
   };
 
+  const MAX_AI_MESSAGES = 20;
+  const appendAIMessage = useCallback((msg) => {
+    setAiMessages(prev => {
+      const next = [...prev, msg];
+      return next.length > MAX_AI_MESSAGES ? next.slice(-MAX_AI_MESSAGES) : next;
+    });
+  }, []);
+
   const sendAIMessage = async (overrideAction) => {
     const action = overrideAction || aiAction || 'chat';
     const msg = aiInput.trim() || action;
-    if (!msg || aiLoading) return;
+    if (!msg || aiLoading || aiCooldownRef.current) return;
     setAiInput('');
     setAiAction(null);
-    setAiMessages(prev => [...prev, { role: 'user', content: msg }]);
+    appendAIMessage({ role: 'user', content: msg });
     setAiLoading(true);
 
     // Use REST API for all AI actions (reliable, no WebSocket dependency)
     try {
-      const res = await api.post('/api/ai/', {
+      const payload = {
         code,
         action,
         language: language.id,
         error: output.includes('Error:') ? output : '',
         output: output.includes('Error:') ? '' : output,
         context: msg,
-      }, { timeout: 30000 });
+      };
+      if (isProjectFile) {
+        payload.project_id = projectFile.projectId;
+        payload.file_id = projectFile.fileId;
+      }
+      const res = await api.post('/api/ai/', payload, { timeout: 30000 });
 
       const responseText = res.data.response || res.data.message || 'No response';
       const extractedCode = res.data.extracted_code;
 
-      setAiMessages(prev => [...prev, {
+      appendAIMessage({
         role: 'assistant',
         content: responseText,
-      }]);
+      });
 
       // Auto-apply code for fix, optimize, debug, generate actions
       if (['fix', 'optimize', 'debug', 'generate'].includes(action) && extractedCode) {
@@ -478,20 +751,22 @@ const EditorPage = () => {
 
       if (status === 429) {
         const mins = refreshSeconds ? Math.ceil(refreshSeconds / 60) : '?';
-        setAiMessages(prev => [...prev, {
+        appendAIMessage({
           role: 'assistant',
           content: `⏰ ${errMsg}`,
           isRateLimit: true,
           refreshMinutes: mins,
-        }]);
+        });
       } else {
-        setAiMessages(prev => [...prev, {
+        appendAIMessage({
           role: 'assistant',
           content: `Error: ${errMsg}`,
-        }]);
+        });
       }
     } finally {
       setAiLoading(false);
+      aiCooldownRef.current = true;
+      setTimeout(() => { aiCooldownRef.current = false; }, 500);
     }
   };
 
@@ -629,6 +904,13 @@ const EditorPage = () => {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
+  // Cleanup diagnostics timer on unmount
+  useEffect(() => {
+    return () => {
+      if (diagnosticsTimerRef.current) clearTimeout(diagnosticsTimerRef.current);
+    };
+  }, []);
+
   // Re-register autocomplete when language changes
   useEffect(() => {
     if (editorRef.current && window.monaco) {
@@ -636,6 +918,12 @@ const EditorPage = () => {
         completionDisposableRef.current.dispose();
       }
       completionDisposableRef.current = registerAutocomplete(editorRef.current, window.monaco);
+      // Clear diagnostics for previous language
+      diagnosticsRef.current = [];
+      const model = editorRef.current.getModel();
+      if (model) {
+        window.monaco.editor.setModelMarkers(model, 'nexus-diagnostics', []);
+      }
     }
     return () => {
       if (completionDisposableRef.current) {
@@ -648,6 +936,15 @@ const EditorPage = () => {
   useEffect(() => {
     return () => { disconnectAI(); };
   }, [disconnectAI]);
+
+  // Dispose Monaco editor on unmount
+  useEffect(() => {
+    return () => {
+      if (cursorDisposableRef.current) { cursorDisposableRef.current.dispose(); cursorDisposableRef.current = null; }
+      if (editorRef.current) { editorRef.current.dispose(); editorRef.current = null; }
+      monacoRef.current = null;
+    };
+  }, []);
 
   const onSplitMouseDown = useCallback((e) => {
     e.preventDefault();
@@ -691,6 +988,11 @@ const EditorPage = () => {
 
   return (
     <div className={`flex flex-col ${isFullscreen ? 'fixed inset-0 z-50' : 'h-[calc(100vh-64px)]'} bg-[var(--color-canvas)]`}>
+      {/* Trace line highlight styles */}
+      <style>{`
+        .trace-line-highlight { background: rgba(124, 58, 237, 0.10) !important; }
+        .trace-line-glyph { background: #7c3aed; width: 3px !important; border-radius: 2px; }
+      `}</style>
       {/* ─── Main Area ─── */}
       <div className="flex flex-1 min-h-0">
         {/* ─── Editor Panel ─── */}
@@ -797,6 +1099,18 @@ const EditorPage = () => {
                   className="flex items-center gap-1.5 px-3 py-1 bg-[#16a34a] hover:bg-[#15803d] text-white rounded-md text-xs font-semibold transition-all shadow-md shadow-[#16a34a]/15"
                 >
                   <Play size={12} /> Run
+                </button>
+              )}
+
+              {/* Trace Code (Python only) */}
+              {language.id === 'python' && !isRunning && (
+                <button
+                  onClick={runTrace}
+                  disabled={traceLoading}
+                  className="flex items-center gap-1.5 px-2.5 py-1 border border-[#7c3aed] text-[#7c3aed] hover:bg-[#7c3aed]/5 rounded-md text-xs font-medium transition-all"
+                >
+                  {traceLoading ? <Loader2 size={11} className="animate-spin" /> : <Map size={11} />}
+                  <span>Trace</span>
                 </button>
               )}
 
@@ -1043,6 +1357,7 @@ const EditorPage = () => {
               <div className="flex items-center border-b border-[var(--color-hairline)]">
                 {[
                   { id: 'output', label: 'Output', icon: Terminal, count: outputLines },
+                  ...(language.id === 'python' ? [{ id: 'trace', label: 'Trace', icon: Map, count: traceData.length }] : []),
                   { id: 'history', label: 'History', icon: Clock, count: execHistory.length },
                 ].map((tab) => (
                   <button
@@ -1194,6 +1509,132 @@ const EditorPage = () => {
                         )}
                       </>
                     )}
+                  </div>
+                ) : outputTab === 'trace' ? (
+                  /* ─── Execution Trace Tab ─── */
+                  <div className="flex flex-col h-full">
+                    {/* Playback Controls */}
+                    {traceData.length > 0 && (
+                      <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--color-hairline)]">
+                        <button
+                          onClick={traceStepBack}
+                          disabled={traceIndex <= 0}
+                          className="p-1 rounded hover:bg-[var(--color-surface-soft)] disabled:opacity-30 text-[var(--color-ink)] transition-all"
+                          title="Step back"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
+                        </button>
+
+                        <button
+                          onClick={toggleTracePlay}
+                          className="p-1 rounded hover:bg-[var(--color-surface-soft)] text-[#7c3aed] transition-all"
+                          title={tracePlaying ? 'Pause' : 'Play'}
+                        >
+                          {tracePlaying ? <Square size={14} /> : <Play size={14} />}
+                        </button>
+
+                        <button
+                          onClick={traceStepForward}
+                          disabled={traceIndex >= traceData.length - 1}
+                          className="p-1 rounded hover:bg-[var(--color-surface-soft)] disabled:opacity-30 text-[var(--color-ink)] transition-all"
+                          title="Step forward"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
+                        </button>
+
+                        <div className="flex-1 mx-2">
+                          <input
+                            type="range"
+                            min={0}
+                            max={traceData.length - 1}
+                            value={traceIndex}
+                            onChange={(e) => {
+                              const idx = parseInt(e.target.value, 10);
+                              setTraceIndex(idx);
+                              highlightTraceLine(idx, traceData);
+                            }}
+                            className="w-full h-1 accent-[#7c3aed] cursor-pointer"
+                          />
+                        </div>
+
+                        <span className="text-[10px] font-mono text-[var(--color-muted)] min-w-[60px] text-right">
+                          {traceIndex + 1} / {traceData.length}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Trace Content */}
+                    <div className="flex-1 overflow-auto p-3">
+                      {traceData.length === 0 ? (
+                        <div className="text-center py-8">
+                          <Map size={28} className="mx-auto mb-2 text-hairline" />
+                          <p className="text-xs text-[var(--color-muted-soft)]">Click Trace to visualize execution</p>
+                          <p className="text-[10px] text-hairline mt-1">Step through your code line by line</p>
+                        </div>
+                      ) : traceData[traceIndex] ? (
+                        <div className="space-y-3">
+                          {/* Current Line Info */}
+                          <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-[#7c3aed]/5 border border-[#7c3aed]/20">
+                            <span className="text-[10px] font-semibold text-[#7c3aed]">Line {traceData[traceIndex].line}</span>
+                            <span className="text-[10px] text-[var(--color-muted)]">•</span>
+                            <span className="text-[10px] font-mono text-[var(--color-ink)]">
+                              Step {traceIndex + 1} of {traceData.length}
+                            </span>
+                          </div>
+
+                          {/* Call Stack */}
+                          <div>
+                            <div className="text-[10px] font-semibold text-[var(--color-muted)] uppercase tracking-wider mb-1 px-1">Call Stack</div>
+                            <div className="flex flex-wrap gap-1">
+                              {traceData[traceIndex].stack.map((fn, si) => (
+                                <span key={si} className={`px-2 py-0.5 rounded text-[10px] font-mono ${
+                                  si === traceData[traceIndex].stack.length - 1
+                                    ? 'bg-[#7c3aed]/10 text-[#7c3aed] font-semibold'
+                                    : 'bg-[var(--color-surface-soft)] text-[var(--color-muted)]'
+                                }`}>
+                                  {fn}{si < traceData[traceIndex].stack.length - 1 ? ' →' : ''}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Variables Table */}
+                          <div>
+                            <div className="text-[10px] font-semibold text-[var(--color-muted)] uppercase tracking-wider mb-1 px-1">Variables</div>
+                            {Object.keys(traceData[traceIndex].variables).length > 0 ? (
+                              <div className="rounded-lg border border-[var(--color-hairline)] overflow-hidden">
+                                <table className="w-full text-[10px]">
+                                  <thead>
+                                    <tr className="bg-[var(--color-surface-card)] border-b border-[var(--color-hairline)]">
+                                      <th className="px-2 py-1 text-left font-semibold text-[var(--color-ink)]">Name</th>
+                                      <th className="px-2 py-1 text-left font-semibold text-[var(--color-ink)]">Value</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {Object.entries(traceData[traceIndex].variables).map(([k, v], vi) => (
+                                      <tr key={vi} className={`border-b border-[var(--color-hairline)]/50 ${vi % 2 === 0 ? '' : 'bg-[var(--color-surface-soft)]/30'}`}>
+                                        <td className="px-2 py-1 font-mono font-semibold text-[#7c3aed]">{k}</td>
+                                        <td className="px-2 py-1 font-mono text-[var(--color-ink)] break-all">{v}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            ) : (
+                              <p className="text-[10px] text-[var(--color-muted-soft)] px-1">No variables at this step</p>
+                            )}
+                          </div>
+
+                          {/* Stdout */}
+                          {traceStdout && traceIndex === traceData.length - 1 && (
+                            <div>
+                              <div className="text-[10px] font-semibold text-[var(--color-muted)] uppercase tracking-wider mb-1 px-1">Output</div>
+                              <pre className="p-2 rounded-md bg-[var(--color-surface-soft)] text-[10px] font-mono text-[var(--color-ink)] whitespace-pre-wrap">{traceStdout}</pre>
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 ) : (
                   /* History Tab */

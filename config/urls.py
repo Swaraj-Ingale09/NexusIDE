@@ -14,7 +14,8 @@ from apps.users.views import UserViewSet, AuthViewSet, UserProfileView, UserStat
 from apps.compiler.views import (
     CodeSnippetViewSet, ExecutionHistoryViewSet, ExecuteCodeView, AIAssistantView,
     TerminalExecutionViewSet, TerminalExecuteView, TerminalStreamingView,
-    ASTAnalysisView, CodeMetricsView, GroqPoolStatusView, SQLSchemaView, SQLResetView
+    ASTAnalysisView, CodeMetricsView, GroqPoolStatusView, SQLSchemaView, SQLResetView,
+    CodeDiagnoseView, CodeTraceView,
 )
 from apps.compiler.sql_ai import SQLAIView
 from apps.compiler import language_detection_api
@@ -117,6 +118,8 @@ urlpatterns = [
     path('api/compiler/language/', language_detection_api.LanguageDetectionView.as_view(), name='language-detection'),
     path('api/compiler/analyze/', ASTAnalysisView.as_view(), name='ast-analysis'),
     path('api/compiler/metrics/', CodeMetricsView.as_view(), name='code-metrics'),
+    path('api/compiler/diagnose/', CodeDiagnoseView.as_view(), name='code-diagnose'),
+    path('api/compiler/trace/', CodeTraceView.as_view(), name='code-trace'),
     path('api/auto-fix/', include('apps.compiler.auto_fix_urls')),
     path('api/self-refactor/', include('apps.compiler.self_refactor_urls')),
     path('api/problems/', include('apps.problems.urls')),

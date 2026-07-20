@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import api from '../utils/api';
 import Editor from '@monaco-editor/react';
@@ -43,6 +43,7 @@ const SQLPlayground = ({ languages = [], currentLanguage, onSwitchLanguage }) =>
   const { theme } = useTheme();
   const editorRef = useRef(null);
   const monacoRef = useRef(null);
+  const cursorDisposableRef = useRef(null);
   const [showLangDropdown, setShowLangDropdown] = useState(false);
 
   const [code, setCode] = useState('SELECT * FROM Customers;');
@@ -95,6 +96,7 @@ const SQLPlayground = ({ languages = [], currentLanguage, onSwitchLanguage }) =>
   const [aiInput, setAiInput] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const aiMessagesEndRef = useRef(null);
+  const aiCooldownRef = useRef(false);
 
   const fetchSchema = async () => {
     try {
@@ -104,6 +106,15 @@ const SQLPlayground = ({ languages = [], currentLanguage, onSwitchLanguage }) =>
   };
 
   useEffect(() => { fetchSchema(); }, []);
+
+  // Dispose Monaco editor on unmount
+  useEffect(() => {
+    return () => {
+      if (cursorDisposableRef.current) { cursorDisposableRef.current.dispose(); cursorDisposableRef.current = null; }
+      if (editorRef.current) { editorRef.current.dispose(); editorRef.current = null; }
+      monacoRef.current = null;
+    };
+  }, []);
 
   const resetDB = async () => {
     try {
@@ -137,7 +148,7 @@ const SQLPlayground = ({ languages = [], currentLanguage, onSwitchLanguage }) =>
     editorRef.current = editor;
     monacoRef.current = monaco;
     editor.focus();
-    editor.onDidChangeCursorPosition((e) => {
+    cursorDisposableRef.current = editor.onDidChangeCursorPosition((e) => {
       setCursorPos({ line: e.position.lineNumber, col: e.position.column });
     });
   };
@@ -216,12 +227,20 @@ const SQLPlayground = ({ languages = [], currentLanguage, onSwitchLanguage }) =>
 
   const copyQuery = () => { navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 1500); };
 
+  const MAX_AI_MESSAGES = 20;
+  const appendAIMessage = useCallback((msg) => {
+    setAiMessages(prev => {
+      const next = [...prev, msg];
+      return next.length > MAX_AI_MESSAGES ? next.slice(-MAX_AI_MESSAGES) : next;
+    });
+  }, []);
+
   // ─── SQL AI Assistant ───
   const sendSQLAI = async (action, userMsg) => {
     const msg = userMsg || aiInput.trim();
-    if (!msg || aiLoading) return;
+    if (!msg || aiLoading || aiCooldownRef.current) return;
     if (action !== 'chat') setAiInput('');
-    setAiMessages(prev => [...prev, { role: 'user', content: msg }]);
+    appendAIMessage({ role: 'user', content: msg });
     setAiLoading(true);
 
     try {
@@ -245,7 +264,7 @@ const SQLPlayground = ({ languages = [], currentLanguage, onSwitchLanguage }) =>
       let aiContent = '';
       let buffer = '';
 
-      setAiMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+      appendAIMessage({ role: 'assistant', content: '' });
 
       while (true) {
         const { done, value } = await reader.read();
@@ -283,9 +302,11 @@ const SQLPlayground = ({ languages = [], currentLanguage, onSwitchLanguage }) =>
         }
       }
     } catch (err) {
-      setAiMessages(prev => [...prev, { role: 'assistant', content: `Error: ${err.message}` }]);
+      appendAIMessage({ role: 'assistant', content: `Error: ${err.message}` });
     } finally {
       setAiLoading(false);
+      aiCooldownRef.current = true;
+      setTimeout(() => { aiCooldownRef.current = false; }, 500);
     }
   };
 
@@ -928,4 +949,4 @@ const SQLPlayground = ({ languages = [], currentLanguage, onSwitchLanguage }) =>
   );
 };
 
-export default SQLPlayground;
+export default memo(SQLPlayground);

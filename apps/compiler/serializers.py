@@ -51,6 +51,8 @@ class AIAssistantSerializer(serializers.Serializer):
     error = serializers.CharField(required=False, allow_blank=True)
     context = serializers.CharField(required=False, allow_blank=True)
     output = serializers.CharField(required=False, allow_blank=True)
+    project_id = serializers.IntegerField(required=False, allow_null=True, default=None)
+    file_id = serializers.IntegerField(required=False, allow_null=True, default=None)
 
 
 # ═══════════════════════════════════════════════════════════════

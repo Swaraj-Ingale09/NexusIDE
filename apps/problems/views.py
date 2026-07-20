@@ -124,12 +124,21 @@ class ProblemSubmissionView(APIView):
             
             problem = get_object_or_404(Problem, id=problem_id, status='published')
             
+            language = request.data.get('language', 'python').lower().strip()
+            if language not in ('python', 'c', 'cpp', 'c++'):
+                return Response(
+                    {'error': f"Language '{language}' not supported. Available: python, c, cpp"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if language == 'c++':
+                language = 'cpp'
+            
             # Create submission
             submission = ProblemSubmission.objects.create(
                 user=request.user if request.user.is_authenticated else None,
                 problem=problem,
                 code=code,
-                language='python'
+                language=language,
             )
             
             # Evaluate (synchronously for now, should be Celery task in production)
